@@ -15,6 +15,11 @@
         
         * {
             font-family: 'Inter', sans-serif;
+            font-size: 90%; /* Scale everything down by 10% */
+        }
+        
+        body {
+            font-size: 14px; /* Reduced from default 16px */
         }
         
         @keyframes slideIn {
@@ -892,227 +897,44 @@
             const exportExcel = () => {
                 const wb = XLSX.utils.book_new();
                 
-                // Helper function to convert hex to RGB for Excel
-                const hexToRgb = (hex) => {
-                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-                    return result ? {
-                        r: parseInt(result[1], 16),
-                        g: parseInt(result[2], 16),
-                        b: parseInt(result[3], 16)
-                    } : { r: 255, g: 255, b: 255 };
-                };
-                
-                // Helper to create RGB string for Excel
-                const rgbToExcel = (rgb) => {
-                    const toHex = (n) => {
-                        const hex = n.toString(16);
-                        return hex.length === 1 ? '0' + hex : hex;
-                    };
-                    return toHex(rgb.r) + toHex(rgb.g) + toHex(rgb.b);
-                };
-                
-                // Helper to lighten color for backgrounds
-                const lightenColor = (hex, percent) => {
-                    const rgb = hexToRgb(hex);
-                    return {
-                        r: Math.min(255, Math.round(rgb.r + (255 - rgb.r) * percent)),
-                        g: Math.min(255, Math.round(rgb.g + (255 - rgb.g) * percent)),
-                        b: Math.min(255, Math.round(rgb.b + (255 - rgb.b) * percent))
-                    };
-                };
-                
                 // Create team roster sheets
                 ['t1', 't2', 't3'].forEach(tk => {
                     if (!rosters[tk].length) return;
                     
-                    const teamColor = colors[tk];
-                    const teamRgb = hexToRgb(teamColor);
-                    const lightRgb = lightenColor(teamColor, 0.8);
-                    
-                    const data = [['', '', '', '', names[tk]]];
+                    const data = [['Age', 'Weight', 'Skill', '', `${names[tk]} (${abbrevs[tk]})`]];
                     rosters[tk].sort((a, b) => a.LastName.localeCompare(b.LastName)).forEach(w => {
                         const ms = getMatches(w).sort((a, b) => a.num - b.num);
                         const row = [w.Age, w.Weight, w.Skill, '', `${w.LastName}, ${w.FirstName}`];
                         ms.forEach(m => {
                             const opp = m.w1.Name === w.Name ? m.w2 : m.w1;
-                            row.push(m.num, `${opp.FirstName.charAt(0)} ${opp.LastName}`);
+                            const oppTeamKey = Object.keys(names).find(k => names[k] === opp.Team);
+                            const oppAbbrev = oppTeamKey ? abbrevs[oppTeamKey] : 'XX';
+                            row.push(m.num, `${oppAbbrev}-${opp.FirstName.charAt(0)} ${opp.LastName}`);
                         });
                         data.push(row);
                     });
                     
                     const ws = XLSX.utils.aoa_to_sheet(data);
-                    
-                    // Apply colors and styling
-                    const range = XLSX.utils.decode_range(ws['!ref']);
-                    
-                    // Style header row (team name)
-                    for (let C = range.s.c; C <= range.e.c; C++) {
-                        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
-                        if (!ws[cellAddress]) continue;
-                        ws[cellAddress].s = {
-                            fill: { fgColor: { rgb: rgbToExcel(teamRgb) } },
-                            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 14 },
-                            alignment: { horizontal: "center", vertical: "center" }
-                        };
-                    }
-                    
-                    // Style data rows with lighter background
-                    for (let R = 1; R <= range.e.r; R++) {
-                        for (let C = range.s.c; C <= range.e.c; C++) {
-                            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
-                            if (!ws[cellAddress]) ws[cellAddress] = { v: '' };
-                            ws[cellAddress].s = {
-                                fill: { fgColor: { rgb: rgbToExcel(lightRgb) } },
-                                border: {
-                                    top: { style: "thin", color: { rgb: "CCCCCC" } },
-                                    bottom: { style: "thin", color: { rgb: "CCCCCC" } },
-                                    left: { style: "thin", color: { rgb: "CCCCCC" } },
-                                    right: { style: "thin", color: { rgb: "CCCCCC" } }
-                                },
-                                alignment: { vertical: "center" }
-                            };
-                            
-                            // Bold the wrestler name column (column E, index 4)
-                            if (C === 4) {
-                                ws[cellAddress].s.font = { bold: true };
-                            }
-                        }
-                    }
-                    
-                    ws['!cols'] = [{ wch: 5 }, { wch: 8 }, { wch: 5 }, { wch: 2 }, { wch: 25 }, { wch: 8 }, { wch: 15 }];
+                    ws['!cols'] = [{ wch: 5 }, { wch: 8 }, { wch: 5 }, { wch: 2 }, { wch: 25 }, { wch: 8 }, { wch: 18 }];
                     XLSX.utils.book_append_sheet(wb, ws, abbrevs[tk]);
                 });
                 
-                // Create mat sheets with color coding
+                // Create mat sheets
                 [1, 2, 3].forEach(mat => {
                     const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.num - b.num);
                     if (!ms.length) return;
                     
-                    const data = [['Match #', '', `Mat ${mat}`, '', '']];
+                    const data = [['Match #', 'Team 1', 'Wrestler 1', 'Team 2', 'Wrestler 2']];
+                    ms.forEach(m => {
+                        const team1Key = Object.keys(names).find(k => names[k] === m.w1.Team);
+                        const team2Key = Object.keys(names).find(k => names[k] === m.w2.Team);
+                        const abbrev1 = team1Key ? abbrevs[team1Key] : 'XX';
+                        const abbrev2 = team2Key ? abbrevs[team2Key] : 'XX';
+                        data.push([m.num, abbrev1, m.w1.Name, abbrev2, m.w2.Name]);
+                    });
                     
                     const ws = XLSX.utils.aoa_to_sheet(data);
-                    
-                    // Build the data array first
-                    const rowData = [];
-                    ms.forEach(m => {
-                        rowData.push({
-                            num: m.num,
-                            team1: m.w1.Team,
-                            abbrev1: getAbbrev(m.w1.Team),
-                            name1: m.w1.Name,
-                            team2: m.w2.Team,
-                            abbrev2: getAbbrev(m.w2.Team),
-                            name2: m.w2.Name,
-                            color1: colors[Object.keys(names).find(k => names[k] === m.w1.Team)],
-                            color2: colors[Object.keys(names).find(k => names[k] === m.w2.Team)]
-                        });
-                    });
-                    
-                    // Add data rows
-                    rowData.forEach(row => {
-                        XLSX.utils.sheet_add_aoa(ws, [[row.num, row.abbrev1, row.name1, row.abbrev2, row.name2]], { origin: -1 });
-                    });
-                    
-                    // Apply styling
-                    const range = XLSX.utils.decode_range(ws['!ref']);
-                    
-                    // Style header
-                    for (let C = range.s.c; C <= range.e.c; C++) {
-                        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
-                        if (!ws[cellAddress]) continue;
-                        ws[cellAddress].s = {
-                            fill: { fgColor: { rgb: "4A5568" } },
-                            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 14 },
-                            alignment: { horizontal: "center", vertical: "center" }
-                        };
-                    }
-                    
-                    // Style data rows with team colors
-                    for (let R = 1; R <= range.e.r; R++) {
-                        const row = rowData[R - 1];
-                        if (!row) continue;
-                        
-                        // Match number cell
-                        const matchCell = XLSX.utils.encode_cell({ r: R, c: 0 });
-                        if (!ws[matchCell]) ws[matchCell] = { v: '' };
-                        ws[matchCell].s = {
-                            fill: { fgColor: { rgb: "F7FAFC" } },
-                            font: { bold: true },
-                            alignment: { horizontal: "center", vertical: "center" },
-                            border: {
-                                top: { style: "thin", color: { rgb: "E2E8F0" } },
-                                bottom: { style: "thin", color: { rgb: "E2E8F0" } },
-                                left: { style: "thin", color: { rgb: "E2E8F0" } },
-                                right: { style: "thin", color: { rgb: "E2E8F0" } }
-                            }
-                        };
-                        
-                        // Team 1 cells (abbrev and name)
-                        const team1Color = lightenColor(row.color1, 0.7);
-                        const team1BorderColor = hexToRgb(row.color1);
-                        
-                        const abbrev1Cell = XLSX.utils.encode_cell({ r: R, c: 1 });
-                        if (!ws[abbrev1Cell]) ws[abbrev1Cell] = { v: '' };
-                        ws[abbrev1Cell].s = {
-                            fill: { fgColor: { rgb: rgbToExcel(team1Color) } },
-                            font: { bold: true, color: { rgb: rgbToExcel(team1BorderColor) } },
-                            alignment: { horizontal: "center", vertical: "center" },
-                            border: {
-                                top: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } },
-                                bottom: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } },
-                                left: { style: "medium", color: { rgb: rgbToExcel(team1BorderColor) } },
-                                right: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } }
-                            }
-                        };
-                        
-                        const name1Cell = XLSX.utils.encode_cell({ r: R, c: 2 });
-                        if (!ws[name1Cell]) ws[name1Cell] = { v: '' };
-                        ws[name1Cell].s = {
-                            fill: { fgColor: { rgb: rgbToExcel(team1Color) } },
-                            font: { bold: true },
-                            alignment: { vertical: "center" },
-                            border: {
-                                top: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } },
-                                bottom: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } },
-                                left: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } },
-                                right: { style: "medium", color: { rgb: rgbToExcel(team1BorderColor) } }
-                            }
-                        };
-                        
-                        // Team 2 cells (abbrev and name)
-                        const team2Color = lightenColor(row.color2, 0.7);
-                        const team2BorderColor = hexToRgb(row.color2);
-                        
-                        const abbrev2Cell = XLSX.utils.encode_cell({ r: R, c: 3 });
-                        if (!ws[abbrev2Cell]) ws[abbrev2Cell] = { v: '' };
-                        ws[abbrev2Cell].s = {
-                            fill: { fgColor: { rgb: rgbToExcel(team2Color) } },
-                            font: { bold: true, color: { rgb: rgbToExcel(team2BorderColor) } },
-                            alignment: { horizontal: "center", vertical: "center" },
-                            border: {
-                                top: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } },
-                                bottom: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } },
-                                left: { style: "medium", color: { rgb: rgbToExcel(team2BorderColor) } },
-                                right: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } }
-                            }
-                        };
-                        
-                        const name2Cell = XLSX.utils.encode_cell({ r: R, c: 4 });
-                        if (!ws[name2Cell]) ws[name2Cell] = { v: '' };
-                        ws[name2Cell].s = {
-                            fill: { fgColor: { rgb: rgbToExcel(team2Color) } },
-                            font: { bold: true },
-                            alignment: { vertical: "center" },
-                            border: {
-                                top: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } },
-                                bottom: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } },
-                                left: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } },
-                                right: { style: "medium", color: { rgb: rgbToExcel(team2BorderColor) } }
-                            }
-                        };
-                    }
-                    
-                    ws['!cols'] = [{ wch: 10 }, { wch: 6 }, { wch: 25 }, { wch: 6 }, { wch: 25 }];
+                    ws['!cols'] = [{ wch: 10 }, { wch: 8 }, { wch: 25 }, { wch: 8 }, { wch: 25 }];
                     XLSX.utils.book_append_sheet(wb, ws, `Mat ${mat}`);
                 });
                 
@@ -1120,6 +942,7 @@
                 XLSX.writeFile(wb, fileName);
                 addToast('Excel file downloaded!', 'success');
             };
+            
             
             // Analytics calculations
             const analytics = useMemo(() => {
@@ -1495,41 +1318,41 @@
                                     </div>
                                     
                                     <div className="grid grid-cols-12 gap-6">
-                                        <div className="col-span-12 lg:col-span-5 space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar">
+                                        <div className="col-span-12 lg:col-span-5 space-y-1 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 250px)' }}>
                                             {getFilteredRoster(teamView).map(w => {
                                                 const ms = getMatches(w);
                                                 const c = getColor(w.Team);
                                                 return (
                                                     <div 
                                                         key={w.Name} 
-                                                        className={`wrestler-card border-2 rounded-xl p-4 cursor-pointer ${selected?.Name === w.Name ? 'ring-4 ring-purple-400 shadow-xl' : 'hover:shadow-lg'}`}
-                                                        style={{ borderLeftColor: c, borderLeftWidth: '6px' }}
+                                                        className={`wrestler-card border-2 rounded-lg p-2 cursor-pointer ${selected?.Name === w.Name ? 'ring-2 ring-purple-400 shadow-lg' : 'hover:shadow-md'}`}
+                                                        style={{ borderLeftColor: c, borderLeftWidth: '4px' }}
                                                     >
-                                                        <div className="flex justify-between mb-2">
+                                                        <div className="flex justify-between mb-1">
                                                             <div className="flex-1" onClick={() => setSelected(w)}>
-                                                                <div className="flex items-center gap-2 mb-1">
-                                                                    <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>
+                                                                <div className="flex items-center gap-1 mb-0.5">
+                                                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>
                                                                         {getAbbrev(w.Team)}
                                                                     </span>
-                                                                    <div className="font-bold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                                    <div className="font-bold text-sm" style={{ color: c }}>{w.Name}</div>
                                                                 </div>
-                                                                <div className="text-sm text-gray-600 flex gap-3 mt-1">
-                                                                    <span>⚖️ {w.Weight} lbs</span>
-                                                                    <span>🎂 Age {w.Age}</span>
-                                                                    <span>🥋 Skill {w.Skill}</span>
+                                                                <div className="text-xs text-gray-600 flex gap-2">
+                                                                    <span>{w.Weight}lb</span>
+                                                                    <span>Age {w.Age}</span>
+                                                                    <span>Sk{w.Skill}</span>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex items-center gap-3">
+                                                            <div className="flex items-center gap-2">
                                                                 <div className="flex flex-col items-center">
-                                                                    <span className="text-2xl font-bold" style={{ color: c }}>{ms.length}</span>
-                                                                    <span className="text-xs text-gray-500">matches</span>
+                                                                    <span className="text-lg font-bold" style={{ color: c }}>{ms.length}</span>
+                                                                    <span className="text-xs text-gray-500">match</span>
                                                                 </div>
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); scratchWrestler(w); }}
-                                                                    className="text-red-600 hover:text-red-800 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-red-50 transition-all"
-                                                                    title="Scratch wrestler"
+                                                                    className="text-red-600 hover:text-red-800 text-xs font-semibold px-1.5 py-0.5 rounded hover:bg-red-50"
+                                                                    title="Scratch"
                                                                 >
-                                                                    ✕ Scratch
+                                                                    ✕
                                                                 </button>
                                                             </div>
                                                         </div>
@@ -1539,18 +1362,34 @@
                                                             return (
                                                                 <div 
                                                                     key={m.num} 
-                                                                    className="flex justify-between items-center text-xs p-2 rounded-lg mb-1 hover:bg-gray-50 transition-all"
-                                                                    style={{ backgroundColor: oc + '15', borderLeft: `3px solid ${oc}` }}
+                                                                    className="text-xs p-1.5 rounded-lg mb-1 hover:bg-gray-50"
+                                                                    style={{ backgroundColor: oc + '15', borderLeft: `2px solid ${oc}` }}
                                                                 >
-                                                                    <span className="font-mono font-bold">
-                                                                        Match #{m.num} vs <span className="px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: oc }}>{getAbbrev(opp.Team)}</span> <span style={{ color: oc }}>{opp.Name}</span>
-                                                                    </span>
-                                                                    <button 
-                                                                        onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} 
-                                                                        className="text-red-600 hover:text-red-800 font-bold px-2 py-1 rounded hover:bg-red-100"
-                                                                    >
-                                                                        ✕
-                                                                    </button>
+                                                                    <div className="flex justify-between items-center mb-0.5">
+                                                                        <span className="font-mono font-semibold text-xs">
+                                                                            #{m.num} <span className="px-1 py-0.5 rounded text-white text-xs" style={{ backgroundColor: oc }}>{getAbbrev(opp.Team)}</span> <span style={{ color: oc }}>{opp.Name}</span>
+                                                                        </span>
+                                                                        <button 
+                                                                            onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} 
+                                                                            className="text-red-600 hover:text-red-800 font-bold px-1 rounded hover:bg-red-100 text-xs"
+                                                                        >
+                                                                            ✕
+                                                                        </button>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-4 gap-0.5">
+                                                                        <div className={`px-1 py-0.5 rounded text-center text-xs ${m.wtPct <= 5 ? 'bg-green-100 text-green-800' : m.wtPct <= 10 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                                                                            {m.wtPct.toFixed(0)}%
+                                                                        </div>
+                                                                        <div className={`px-1 py-0.5 rounded text-center text-xs ${m.ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                            A:{m.ageDiff}
+                                                                        </div>
+                                                                        <div className={`px-1 py-0.5 rounded text-center text-xs ${m.skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                            S:{m.skillDiff}
+                                                                        </div>
+                                                                        <div className={`px-1 py-0.5 rounded text-center text-xs ${Math.abs(w.Exp - opp.Exp) <= 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                            E:{Math.abs(w.Exp - opp.Exp)}
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             );
                                                         })}
@@ -1666,19 +1505,19 @@
                             
                             {tab === 'mats' && matches.length > 0 && (
                                 <div>
-                                    <div className="mb-6 p-4 bg-orange-50 border-l-4 border-orange-500 rounded-xl">
-                                        <p className="text-sm text-orange-800 font-medium">
-                                            <strong>⚠️ Rest Period Alerts:</strong> Matches highlighted in orange indicate wrestlers competing within {settings.minRestBetweenBouts} matches of each other on the same mat.
+                                    <div className="mb-3 p-2 bg-orange-50 border-l-4 border-orange-500 rounded-lg">
+                                        <p className="text-xs text-orange-800">
+                                            <strong>⚠️ Rest Alerts:</strong> Orange = wrestlers within {settings.minRestBetweenBouts} matches on same mat
                                         </p>
                                     </div>
                                     
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-h-[700px] overflow-y-auto custom-scrollbar">
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 250px)' }}>
                                         {[1, 2, 3].map(mat => {
                                             const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
                                             return (
                                                 <div 
                                                     key={mat} 
-                                                    className="border-2 border-gray-300 rounded-xl overflow-hidden"
+                                                    className="border-2 border-gray-300 rounded-lg overflow-hidden"
                                                     onDragOver={(e) => e.preventDefault()} 
                                                     onDrop={(e) => {
                                                         e.preventDefault();
@@ -1691,11 +1530,11 @@
                                                         }
                                                     }}
                                                 >
-                                                    <div className="gradient-bg text-white p-4 font-bold flex justify-between sticky top-0 z-10">
-                                                        <span className="text-xl">🥋 Mat {mat}</span>
-                                                        <span className="text-xl">{ms.length}</span>
+                                                    <div className="gradient-bg text-white p-2 font-bold flex justify-between sticky top-0 z-10 text-sm">
+                                                        <span>🥋 Mat {mat}</span>
+                                                        <span>{ms.length}</span>
                                                     </div>
-                                                    <div className="p-3 space-y-3 min-h-[200px] bg-gray-50">
+                                                    <div className="p-1.5 space-y-1.5 min-h-[150px] bg-gray-50">
                                                         {ms.map((m, index) => {
                                                             const c1 = getColor(m.w1.Team);
                                                             const c2 = getColor(m.w2.Team);
@@ -1728,54 +1567,54 @@
                                                                             reorderWithinMat(mat, fromIndex, toIndex);
                                                                         }
                                                                     }}
-                                                                    className={`match-card border-2 rounded-xl p-3 cursor-move bg-white ${
+                                                                    className={`match-card border rounded-lg p-1.5 cursor-move bg-white text-xs ${
                                                                         dragged?.num === m.num ? 'dragging' : ''
-                                                                    } ${anyNeedsRest ? 'ring-4 ring-orange-400 bg-orange-50' : 'hover:shadow-lg'}`}
+                                                                    } ${anyNeedsRest ? 'ring-2 ring-orange-400 bg-orange-50' : 'hover:shadow-md'}`}
                                                                 >
-                                                                    <div className="font-mono text-sm font-bold mb-3 flex items-center justify-between">
-                                                                        <span className="flex items-center gap-2">
-                                                                            <span className="text-gray-400">⋮⋮</span>
-                                                                            <span className="bg-gray-200 px-3 py-1 rounded-lg">#{m.num}</span>
+                                                                    <div className="font-mono text-xs font-bold mb-1 flex items-center justify-between">
+                                                                        <span className="flex items-center gap-1">
+                                                                            <span className="text-gray-400 text-sm">⋮⋮</span>
+                                                                            <span className="bg-gray-200 px-1.5 py-0.5 rounded text-xs">#{m.num}</span>
                                                                         </span>
                                                                         {anyNeedsRest && (
-                                                                            <span className="text-orange-600 text-xs font-bold bg-orange-100 px-2 py-1 rounded-lg">
-                                                                                ⚠️ {w1NeedsRest && w2NeedsRest ? 'Both' : w1NeedsRest ? m.w1.FirstName : m.w2.FirstName}
+                                                                            <span className="text-orange-600 text-xs font-bold bg-orange-100 px-1 py-0.5 rounded">
+                                                                                ⚠️
                                                                             </span>
                                                                         )}
                                                                     </div>
-                                                                    <div className="grid grid-cols-2 gap-3">
+                                                                    <div className="grid grid-cols-2 gap-1">
                                                                         <div 
-                                                                            className={`p-3 rounded-lg font-semibold border-l-4 ${w1NeedsRest ? 'ring-2 ring-orange-400' : ''}`}
+                                                                            className={`p-1 rounded text-xs font-semibold border-l-2 ${w1NeedsRest ? 'ring-1 ring-orange-400' : ''}`}
                                                                             style={{ backgroundColor: c1 + '25', borderLeftColor: c1, color: c1 }}
                                                                         >
-                                                                            <div className="flex items-center gap-2 mb-1">
-                                                                                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c1, color: 'white' }}>
+                                                                            <div className="flex items-center gap-0.5 mb-0.5">
+                                                                                <span className="text-xs font-bold px-1 py-0.5 rounded" style={{ backgroundColor: c1, color: 'white' }}>
                                                                                     {getAbbrev(m.w1.Team)}
                                                                                 </span>
                                                                             </div>
-                                                                            <div className="font-bold">{m.w1.Name}</div>
-                                                                            <div className="text-gray-600 font-normal text-xs mt-1">{m.w1.Weight} lbs</div>
+                                                                            <div className="font-bold text-xs leading-tight">{m.w1.Name}</div>
+                                                                            <div className="text-gray-600 font-normal text-xs">{m.w1.Weight}lb</div>
                                                                         </div>
                                                                         <div 
-                                                                            className={`p-3 rounded-lg font-semibold border-l-4 ${w2NeedsRest ? 'ring-2 ring-orange-400' : ''}`}
+                                                                            className={`p-1 rounded text-xs font-semibold border-l-2 ${w2NeedsRest ? 'ring-1 ring-orange-400' : ''}`}
                                                                             style={{ backgroundColor: c2 + '25', borderLeftColor: c2, color: c2 }}
                                                                         >
-                                                                            <div className="flex items-center gap-2 mb-1">
-                                                                                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c2, color: 'white' }}>
+                                                                            <div className="flex items-center gap-0.5 mb-0.5">
+                                                                                <span className="text-xs font-bold px-1 py-0.5 rounded" style={{ backgroundColor: c2, color: 'white' }}>
                                                                                     {getAbbrev(m.w2.Team)}
                                                                                 </span>
                                                                             </div>
-                                                                            <div className="font-bold">{m.w2.Name}</div>
-                                                                            <div className="text-gray-600 font-normal text-xs mt-1">{m.w2.Weight} lbs</div>
+                                                                            <div className="font-bold text-xs leading-tight">{m.w2.Name}</div>
+                                                                            <div className="text-gray-600 font-normal text-xs">{m.w2.Weight}lb</div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                             );
                                                         })}
                                                         {ms.length === 0 && (
-                                                            <div className="text-center text-gray-400 py-12">
-                                                                <div className="text-4xl mb-2">📭</div>
-                                                                <p className="text-sm">Drag matches here</p>
+                                                            <div className="text-center text-gray-400 py-8">
+                                                                <div className="text-2xl mb-1">📭</div>
+                                                                <p className="text-xs">Drag matches here</p>
                                                             </div>
                                                         )}
                                                     </div>
