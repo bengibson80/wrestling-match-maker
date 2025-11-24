@@ -29,6 +29,17 @@
         /* Make content areas more compact */
         .wrestler-card, .match-card {
             font-size: 90%;
+            transition: all 0.2s ease;
+        }
+        
+        .match-card.dragging {
+            opacity: 0.5;
+            transform: scale(0.95);
+            cursor: grabbing;
+        }
+        
+        .match-card:hover {
+            transform: translateY(-1px);
         }
         
         @keyframes slideIn {
@@ -883,6 +894,84 @@
                 return k ? abbrevs[k] : 'XX';
             };
             
+            // Handler to update team name and sync with all wrestlers and matches
+            const handleTeamNameChange = (teamKey, newName) => {
+                const oldName = names[teamKey];
+                
+                // Update team name
+                setNames(p => ({ ...p, [teamKey]: newName }));
+                
+                // Update all wrestlers with this team
+                setRosters(prev => ({
+                    ...prev,
+                    [teamKey]: prev[teamKey].map(w => ({ ...w, Team: newName }))
+                }));
+                
+                // Update all matches with this team
+                setMatches(prev => prev.map(m => ({
+                    ...m,
+                    w1: m.w1.Team === oldName ? { ...m.w1, Team: newName } : m.w1,
+                    w2: m.w2.Team === oldName ? { ...m.w2, Team: newName } : m.w2
+                })));
+                
+                // Update scratched wrestlers
+                setScratched(prev => prev.map(w => 
+                    w.Team === oldName ? { ...w, Team: newName } : w
+                ));
+            };
+            
+            // Sync all team names to match current names state
+            const syncAllTeamNames = () => {
+                // Update all rosters
+                setRosters(prev => {
+                    const updated = {};
+                    ['t1', 't2', 't3'].forEach(tk => {
+                        updated[tk] = prev[tk].map(w => ({ ...w, Team: names[tk] }));
+                    });
+                    return updated;
+                });
+                
+                // Create a mapping of old names to new names for matches
+                const teamMap = new Map();
+                ['t1', 't2', 't3'].forEach(tk => {
+                    teamMap.set(tk, names[tk]);
+                });
+                
+                // Update all matches - map by finding which roster each wrestler belongs to
+                setMatches(prev => prev.map(m => {
+                    // Find which team w1 belongs to
+                    let w1TeamKey = null;
+                    let w2TeamKey = null;
+                    
+                    ['t1', 't2', 't3'].forEach(tk => {
+                        if (rosters[tk].some(w => w.Name === m.w1.Name)) w1TeamKey = tk;
+                        if (rosters[tk].some(w => w.Name === m.w2.Name)) w2TeamKey = tk;
+                    });
+                    
+                    return {
+                        ...m,
+                        w1: w1TeamKey ? { ...m.w1, Team: names[w1TeamKey] } : m.w1,
+                        w2: w2TeamKey ? { ...m.w2, Team: names[w2TeamKey] } : m.w2
+                    };
+                }));
+                
+                // Update scratched wrestlers
+                setScratched(prev => prev.map(w => {
+                    let teamKey = null;
+                    ['t1', 't2', 't3'].forEach(tk => {
+                        if (rosters[tk].some(wr => wr.Name === w.Name)) teamKey = tk;
+                    });
+                    return teamKey ? { ...w, Team: names[teamKey] } : w;
+                }));
+            };
+            
+            // Run sync when names change
+            useEffect(() => {
+                if (matches.length > 0 || rosters.t1.length > 0 || rosters.t2.length > 0 || rosters.t3.length > 0) {
+                    syncAllTeamNames();
+                }
+            }, [names]);
+            
             const needsRestHighlight = (wrestler, matchNum, mat) => {
                 const wrestlerMatches = matches
                     .filter(m => m.mat === mat)
@@ -1144,7 +1233,7 @@
                                                     <input 
                                                         type="text" 
                                                         value={names[tk]} 
-                                                        onChange={(e) => setNames(p => ({ ...p, [tk]: e.target.value }))} 
+                                                        onChange={(e) => handleTeamNameChange(tk, e.target.value)} 
                                                         className="text-xl font-bold border-b-2 border-purple-300 px-2 py-1 outline-none focus:border-purple-500 transition-colors flex-1"
                                                         placeholder="Team Name"
                                                     />
@@ -1335,31 +1424,24 @@
                                                 return (
                                                     <div 
                                                         key={w.Name} 
-                                                        className={`wrestler-card border-2 rounded-lg p-2 cursor-pointer ${selected?.Name === w.Name ? 'ring-2 ring-purple-400 shadow-lg' : 'hover:shadow-md'}`}
-                                                        style={{ borderLeftColor: c, borderLeftWidth: '4px' }}
+                                                        className={`wrestler-card border rounded p-1.5 cursor-pointer ${selected?.Name === w.Name ? 'ring-2 ring-purple-400 shadow-lg' : 'hover:shadow-md'}`}
+                                                        style={{ borderLeftColor: c, borderLeftWidth: '3px' }}
                                                     >
-                                                        <div className="flex justify-between mb-1">
+                                                        <div className="flex justify-between items-center mb-0.5">
                                                             <div className="flex-1" onClick={() => setSelected(w)}>
-                                                                <div className="flex items-center gap-1 mb-0.5">
-                                                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="text-xs font-bold px-1 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>
                                                                         {getAbbrev(w.Team)}
                                                                     </span>
-                                                                    <div className="font-bold text-sm" style={{ color: c }}>{w.Name}</div>
-                                                                </div>
-                                                                <div className="text-xs text-gray-600 flex gap-2">
-                                                                    <span>{w.Weight}lb</span>
-                                                                    <span>Age {w.Age}</span>
-                                                                    <span>Sk{w.Skill}</span>
+                                                                    <div className="font-bold text-xs" style={{ color: c }}>{w.Name}</div>
+                                                                    <span className="text-xs text-gray-500">{w.Weight}lb·{w.Age}y·S{w.Skill}</span>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="flex flex-col items-center">
-                                                                    <span className="text-lg font-bold" style={{ color: c }}>{ms.length}</span>
-                                                                    <span className="text-xs text-gray-500">match</span>
-                                                                </div>
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="text-base font-bold" style={{ color: c }}>{ms.length}</span>
                                                                 <button
                                                                     onClick={(e) => { e.stopPropagation(); scratchWrestler(w); }}
-                                                                    className="text-red-600 hover:text-red-800 text-xs font-semibold px-1.5 py-0.5 rounded hover:bg-red-50"
+                                                                    className="text-red-600 hover:text-red-800 text-xs px-1 rounded hover:bg-red-50"
                                                                     title="Scratch"
                                                                 >
                                                                     ✕
@@ -1372,12 +1454,23 @@
                                                             return (
                                                                 <div 
                                                                     key={m.num} 
-                                                                    className="text-xs p-1.5 rounded-lg mb-1 hover:bg-gray-50"
+                                                                    className="text-xs p-1 rounded mb-0.5 hover:bg-gray-50 flex items-center justify-between"
                                                                     style={{ backgroundColor: oc + '15', borderLeft: `2px solid ${oc}` }}
                                                                 >
-                                                                    <div className="flex justify-between items-center mb-0.5">
-                                                                        <span className="font-mono font-semibold text-xs">
-                                                                            #{m.num} <span className="px-1 py-0.5 rounded text-white text-xs" style={{ backgroundColor: oc }}>{getAbbrev(opp.Team)}</span> <span style={{ color: oc }}>{opp.Name}</span>
+                                                                    <div className="flex items-center gap-1 flex-1">
+                                                                        <span className="font-mono font-semibold text-xs">#{m.num}</span>
+                                                                        <span className="px-1 py-0.5 rounded text-white text-xs" style={{ backgroundColor: oc }}>{getAbbrev(opp.Team)}</span>
+                                                                        <span style={{ color: oc }} className="text-xs truncate">{opp.Name}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-0.5">
+                                                                        <span className={`px-1 py-0.5 rounded text-xs ${m.wtPct <= 5 ? 'bg-green-100 text-green-800' : m.wtPct <= 10 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                                                                            {m.wtPct.toFixed(0)}%
+                                                                        </span>
+                                                                        <span className={`px-1 py-0.5 rounded text-xs ${m.ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                            A{m.ageDiff}
+                                                                        </span>
+                                                                        <span className={`px-1 py-0.5 rounded text-xs ${m.skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                            S{m.skillDiff}
                                                                         </span>
                                                                         <button 
                                                                             onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} 
@@ -1385,20 +1478,6 @@
                                                                         >
                                                                             ✕
                                                                         </button>
-                                                                    </div>
-                                                                    <div className="grid grid-cols-4 gap-0.5">
-                                                                        <div className={`px-1 py-0.5 rounded text-center text-xs ${m.wtPct <= 5 ? 'bg-green-100 text-green-800' : m.wtPct <= 10 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                                                                            {m.wtPct.toFixed(0)}%
-                                                                        </div>
-                                                                        <div className={`px-1 py-0.5 rounded text-center text-xs ${m.ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                                            A:{m.ageDiff}
-                                                                        </div>
-                                                                        <div className={`px-1 py-0.5 rounded text-center text-xs ${m.skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                                            S:{m.skillDiff}
-                                                                        </div>
-                                                                        <div className={`px-1 py-0.5 rounded text-center text-xs ${Math.abs(w.Exp - opp.Exp) <= 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                                            E:{Math.abs(w.Exp - opp.Exp)}
-                                                                        </div>
                                                                     </div>
                                                                 </div>
                                                             );
@@ -1515,19 +1594,17 @@
                             
                             {tab === 'mats' && matches.length > 0 && (
                                 <div>
-                                    <div className="mb-3 p-2 bg-orange-50 border-l-4 border-orange-500 rounded-lg">
-                                        <p className="text-xs text-orange-800">
-                                            <strong>⚠️ Rest Alerts:</strong> Orange = wrestlers within {settings.minRestBetweenBouts} matches on same mat
-                                        </p>
+                                    <div className="mb-2 p-1.5 bg-orange-50 border-l-2 border-orange-500 rounded text-xs text-orange-800">
+                                        <strong>⚠️</strong> Orange = wrestlers within {settings.minRestBetweenBouts} matches
                                     </div>
                                     
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 200px)' }}>
                                         {[1, 2, 3].map(mat => {
                                             const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
                                             return (
                                                 <div 
                                                     key={mat} 
-                                                    className="border-2 border-gray-300 rounded-lg overflow-hidden"
+                                                    className="border border-gray-300 rounded overflow-hidden"
                                                     onDragOver={(e) => e.preventDefault()} 
                                                     onDrop={(e) => {
                                                         e.preventDefault();
@@ -1540,11 +1617,11 @@
                                                         }
                                                     }}
                                                 >
-                                                    <div className="gradient-bg text-white p-2 font-bold flex justify-between sticky top-0 z-10 text-sm">
+                                                    <div className="gradient-bg text-white p-1.5 font-bold flex justify-between sticky top-0 z-10 text-xs">
                                                         <span>🥋 Mat {mat}</span>
                                                         <span>{ms.length}</span>
                                                     </div>
-                                                    <div className="p-1.5 space-y-1.5 min-h-[150px] bg-gray-50">
+                                                    <div className="p-1 space-y-0.5 min-h-[100px] bg-gray-50">
                                                         {ms.map((m, index) => {
                                                             const c1 = getColor(m.w1.Team);
                                                             const c2 = getColor(m.w2.Team);
@@ -1583,54 +1660,52 @@
                                                                             }
                                                                         }
                                                                     }}
-                                                                    className={`match-card border rounded-lg p-1.5 cursor-move bg-white text-xs ${
-                                                                        dragged?.num === m.num ? 'dragging' : ''
-                                                                    } ${anyNeedsRest ? 'ring-2 ring-orange-400 bg-orange-50' : 'hover:shadow-md'}`}
+                                                                    className={`match-card border rounded p-1 cursor-move bg-white ${
+                                                                        dragged?.num === m.num ? 'dragging opacity-50' : ''
+                                                                    } ${anyNeedsRest ? 'ring-1 ring-orange-400 bg-orange-50' : 'hover:shadow-sm'}`}
                                                                 >
-                                                                    <div className="font-mono text-xs font-bold mb-1 flex items-center justify-between">
-                                                                        <span className="flex items-center gap-1">
-                                                                            <span className="text-gray-400 text-sm">⋮⋮</span>
-                                                                            <span className="bg-gray-200 px-1.5 py-0.5 rounded text-xs">#{m.num}</span>
-                                                                        </span>
+                                                                    <div className="flex items-center justify-between mb-0.5">
+                                                                        <div className="flex items-center gap-0.5">
+                                                                            <span className="text-gray-400 text-xs">⋮⋮</span>
+                                                                            <span className="bg-gray-200 px-1 py-0.5 rounded text-xs font-bold">#{m.num}</span>
+                                                                        </div>
                                                                         {anyNeedsRest && (
-                                                                            <span className="text-orange-600 text-xs font-bold bg-orange-100 px-1 py-0.5 rounded">
-                                                                                ⚠️
-                                                                            </span>
+                                                                            <span className="text-orange-600 text-xs">⚠️</span>
                                                                         )}
                                                                     </div>
-                                                                    <div className="grid grid-cols-2 gap-1">
+                                                                    <div className="flex gap-0.5 text-xs">
                                                                         <div 
-                                                                            className={`p-1 rounded text-xs font-semibold border-l-2 ${w1NeedsRest ? 'ring-1 ring-orange-400' : ''}`}
-                                                                            style={{ backgroundColor: c1 + '25', borderLeftColor: c1, color: c1 }}
+                                                                            className={`flex-1 p-0.5 rounded border-l ${w1NeedsRest ? 'ring-1 ring-orange-400' : ''}`}
+                                                                            style={{ backgroundColor: c1 + '20', borderLeftColor: c1, borderLeftWidth: '2px' }}
                                                                         >
-                                                                            <div className="flex items-center gap-0.5 mb-0.5">
+                                                                            <div className="flex items-center gap-0.5">
                                                                                 <span className="text-xs font-bold px-1 py-0.5 rounded" style={{ backgroundColor: c1, color: 'white' }}>
                                                                                     {getAbbrev(m.w1.Team)}
                                                                                 </span>
+                                                                                <span className="font-semibold text-xs truncate" style={{ color: c1 }}>{m.w1.Name.split(' ')[1] || m.w1.Name}</span>
                                                                             </div>
-                                                                            <div className="font-bold text-xs leading-tight">{m.w1.Name}</div>
-                                                                            <div className="text-gray-600 font-normal text-xs">{m.w1.Weight}lb</div>
+                                                                            <div className="text-gray-600 text-xs">{m.w1.Weight}lb</div>
                                                                         </div>
                                                                         <div 
-                                                                            className={`p-1 rounded text-xs font-semibold border-l-2 ${w2NeedsRest ? 'ring-1 ring-orange-400' : ''}`}
-                                                                            style={{ backgroundColor: c2 + '25', borderLeftColor: c2, color: c2 }}
+                                                                            className={`flex-1 p-0.5 rounded border-l ${w2NeedsRest ? 'ring-1 ring-orange-400' : ''}`}
+                                                                            style={{ backgroundColor: c2 + '20', borderLeftColor: c2, borderLeftWidth: '2px' }}
                                                                         >
-                                                                            <div className="flex items-center gap-0.5 mb-0.5">
+                                                                            <div className="flex items-center gap-0.5">
                                                                                 <span className="text-xs font-bold px-1 py-0.5 rounded" style={{ backgroundColor: c2, color: 'white' }}>
                                                                                     {getAbbrev(m.w2.Team)}
                                                                                 </span>
+                                                                                <span className="font-semibold text-xs truncate" style={{ color: c2 }}>{m.w2.Name.split(' ')[1] || m.w2.Name}</span>
                                                                             </div>
-                                                                            <div className="font-bold text-xs leading-tight">{m.w2.Name}</div>
-                                                                            <div className="text-gray-600 font-normal text-xs">{m.w2.Weight}lb</div>
+                                                                            <div className="text-gray-600 text-xs">{m.w2.Weight}lb</div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                             );
                                                         })}
                                                         {ms.length === 0 && (
-                                                            <div className="text-center text-gray-400 py-8">
-                                                                <div className="text-2xl mb-1">📭</div>
-                                                                <p className="text-xs">Drag matches here</p>
+                                                            <div className="text-center text-gray-400 py-4 text-xs">
+                                                                <div className="text-xl">📭</div>
+                                                                <p className="text-xs">Drag here</p>
                                                             </div>
                                                         )}
                                                     </div>
