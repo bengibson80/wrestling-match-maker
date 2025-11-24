@@ -1,0 +1,1737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wrestling Match Maker Pro - Premium</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        
+        .animate-slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        .animate-slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        .animate-pulse-once {
+            animation: pulse 0.5s ease-out;
+        }
+        
+        .drag-over {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+            border: 2px dashed #3B82F6;
+        }
+        
+        .dragging {
+            opacity: 0.5;
+            transform: rotate(5deg);
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+        }
+        
+        .print-only {
+            display: none;
+        }
+        
+        .stat-card {
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        
+        .match-card {
+            transition: all 0.2s ease;
+        }
+        
+        .match-card:hover {
+            transform: scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .wrestler-card {
+            transition: all 0.2s ease;
+        }
+        
+        .wrestler-card:hover {
+            transform: translateX(5px);
+        }
+        
+        .modal-backdrop {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .tab-button {
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .tab-button::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .tab-button.active::after {
+            transform: scaleX(1);
+        }
+        
+        .fade-enter {
+            opacity: 0;
+        }
+        
+        .fade-enter-active {
+            opacity: 1;
+            transition: opacity 300ms;
+        }
+        
+        .dark-mode {
+            background: #1a1a2e;
+            color: #eee;
+        }
+        
+        .dark-mode .glass {
+            background: rgba(30, 30, 46, 0.9);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useCallback, useEffect, useRef, useMemo } = React;
+        
+        // Toast notification component
+        const Toast = ({ message, type = 'success', onClose }) => {
+            useEffect(() => {
+                const timer = setTimeout(onClose, 3000);
+                return () => clearTimeout(timer);
+            }, [onClose]);
+            
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '⚠',
+                info: 'ℹ'
+            };
+            
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+            
+            return (
+                <div className={`toast ${colors[type]} text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px]`}>
+                    <span className="text-2xl font-bold">{icons[type]}</span>
+                    <span className="flex-1 font-medium">{message}</span>
+                    <button onClick={onClose} className="text-white hover:text-gray-200 font-bold text-xl">×</button>
+                </div>
+            );
+        };
+        
+        // Toast container component
+        const ToastContainer = ({ toasts, removeToast }) => {
+            return (
+                <div className="fixed top-4 right-4 z-50 space-y-2">
+                    {toasts.map(toast => (
+                        <Toast key={toast.id} {...toast} onClose={() => removeToast(toast.id)} />
+                    ))}
+                </div>
+            );
+        };
+        
+        // Modal component
+        const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
+            if (!isOpen) return null;
+            
+            const sizes = {
+                sm: 'max-w-md',
+                md: 'max-w-2xl',
+                lg: 'max-w-4xl',
+                xl: 'max-w-6xl'
+            };
+            
+            return (
+                <div className="fixed inset-0 z-50 overflow-y-auto modal-backdrop animate-fade-in" onClick={onClose}>
+                    <div className="flex items-center justify-center min-h-screen p-4">
+                        <div 
+                            className={`glass rounded-2xl shadow-2xl ${sizes[size]} w-full animate-slide-up`}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-2xl font-bold gradient-text">{title}</h2>
+                                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-3xl font-bold leading-none">×</button>
+                                </div>
+                                <div className="mt-4">
+                                    {children}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        // Stats card component
+        const StatCard = ({ title, value, icon, color = 'blue', trend }) => {
+            return (
+                <div className={`stat-card glass rounded-xl p-6 border-l-4 border-${color}-500`}>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="text-sm font-medium text-gray-600">{title}</p>
+                            <p className="text-3xl font-bold text-gray-900 mt-2">{value}</p>
+                            {trend && (
+                                <p className={`text-sm mt-2 ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}%
+                                </p>
+                            )}
+                        </div>
+                        <div className={`text-4xl bg-${color}-100 text-${color}-600 p-3 rounded-lg`}>
+                            {icon}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        const App = () => {
+            const [rosters, setRosters] = useState({ t1: [], t2: [], t3: [] });
+            const [names, setNames] = useState({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3' });
+            const [colors, setColors] = useState({ t1: '#3B82F6', t2: '#8B5CF6', t3: '#10B981' });
+            const [matches, setMatches] = useState([]);
+            const [scratched, setScratched] = useState([]);
+            const [settings, setSettings] = useState({ 
+                maxWt: 10, 
+                preferredWt: 5,
+                maxAge: 1, 
+                maxSkill: 2, 
+                minMatchesPerWrestler: 2,
+                maxPerMat: 25,
+                minRestBetweenBouts: 4
+            });
+            const [tab, setTab] = useState('upload');
+            const [teamView, setTeamView] = useState('t1');
+            const [selected, setSelected] = useState(null);
+            const [dragged, setDragged] = useState(null);
+            const [draggedFromMat, setDraggedFromMat] = useState(null);
+            const [savedTournaments, setSavedTournaments] = useState([]);
+            const [currentTournament, setCurrentTournament] = useState('');
+            const [toasts, setToasts] = useState([]);
+            const [history, setHistory] = useState([]);
+            const [historyIndex, setHistoryIndex] = useState(-1);
+            const [darkMode, setDarkMode] = useState(false);
+            const [showAnalytics, setShowAnalytics] = useState(false);
+            const [filterText, setFilterText] = useState('');
+            const [sortBy, setSortBy] = useState('name');
+            
+            // Modals
+            const [showSaveDialog, setShowSaveDialog] = useState(false);
+            const [showManageDialog, setShowManageDialog] = useState(false);
+            const [showPasteDialog, setShowPasteDialog] = useState(false);
+            const [showScratchDialog, setShowScratchDialog] = useState(false);
+            const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+            const [pasteText, setPasteText] = useState('');
+            const [pasteTeam, setPasteTeam] = useState('t1');
+            const [saveName, setSaveName] = useState('');
+            
+            // Toast management
+            const addToast = useCallback((message, type = 'success') => {
+                const id = Date.now();
+                setToasts(prev => [...prev, { id, message, type }]);
+            }, []);
+            
+            const removeToast = useCallback((id) => {
+                setToasts(prev => prev.filter(t => t.id !== id));
+            }, []);
+            
+            // Load saved tournaments on mount
+            useEffect(() => {
+                const saved = JSON.parse(localStorage.getItem('wrestlingTournaments') || '{}');
+                setSavedTournaments(Object.keys(saved));
+            }, []);
+            
+            // Auto-save current tournament
+            useEffect(() => {
+                if (currentTournament) {
+                    const state = { rosters, names, colors, matches, scratched, settings };
+                    const saved = JSON.parse(localStorage.getItem('wrestlingTournaments') || '{}');
+                    saved[currentTournament] = { ...state, lastModified: new Date().toISOString() };
+                    localStorage.setItem('wrestlingTournaments', JSON.stringify(saved));
+                }
+            }, [rosters, names, colors, matches, scratched, settings, currentTournament]);
+            
+            // Keyboard shortcuts
+            useEffect(() => {
+                const handleKeyPress = (e) => {
+                    if (e.ctrlKey || e.metaKey) {
+                        if (e.key === 's') {
+                            e.preventDefault();
+                            setShowSaveDialog(true);
+                        } else if (e.key === 'z') {
+                            e.preventDefault();
+                            undo();
+                        } else if (e.key === 'y') {
+                            e.preventDefault();
+                            redo();
+                        }
+                    }
+                };
+                
+                window.addEventListener('keydown', handleKeyPress);
+                return () => window.removeEventListener('keydown', handleKeyPress);
+            }, [historyIndex]);
+            
+            // Add to history for undo/redo
+            const addToHistory = useCallback((state) => {
+                setHistory(prev => {
+                    const newHistory = prev.slice(0, historyIndex + 1);
+                    return [...newHistory, state];
+                });
+                setHistoryIndex(prev => prev + 1);
+            }, [historyIndex]);
+            
+            const undo = () => {
+                if (historyIndex > 0) {
+                    const prevState = history[historyIndex - 1];
+                    setMatches(prevState.matches);
+                    setHistoryIndex(prev => prev - 1);
+                    addToast('Undo successful', 'info');
+                }
+            };
+            
+            const redo = () => {
+                if (historyIndex < history.length - 1) {
+                    const nextState = history[historyIndex + 1];
+                    setMatches(nextState.matches);
+                    setHistoryIndex(prev => prev + 1);
+                    addToast('Redo successful', 'info');
+                }
+            };
+            
+            const saveNew = () => {
+                if (!saveName.trim()) {
+                    addToast('Please enter a tournament name', 'error');
+                    return;
+                }
+                const state = { rosters, names, colors, matches, scratched, settings };
+                const saved = JSON.parse(localStorage.getItem('wrestlingTournaments') || '{}');
+                saved[saveName] = { ...state, lastModified: new Date().toISOString() };
+                localStorage.setItem('wrestlingTournaments', JSON.stringify(saved));
+                setSavedTournaments(Object.keys(saved));
+                setCurrentTournament(saveName);
+                setSaveName('');
+                setShowSaveDialog(false);
+                addToast(`Tournament "${saveName}" saved!`, 'success');
+            };
+            
+            const loadTournament = (name) => {
+                const saved = JSON.parse(localStorage.getItem('wrestlingTournaments') || '{}');
+                if (saved[name]) {
+                    const data = saved[name];
+                    setRosters(data.rosters);
+                    setNames(data.names);
+                    setColors(data.colors);
+                    setMatches(data.matches);
+                    setScratched(data.scratched || []);
+                    setSettings(data.settings);
+                    setCurrentTournament(name);
+                    addToast(`Loaded "${name}"`, 'success');
+                }
+            };
+            
+            const deleteTournament = (name) => {
+                const saved = JSON.parse(localStorage.getItem('wrestlingTournaments') || '{}');
+                delete saved[name];
+                localStorage.setItem('wrestlingTournaments', JSON.stringify(saved));
+                setSavedTournaments(Object.keys(saved));
+                if (currentTournament === name) setCurrentTournament('');
+                addToast(`Deleted "${name}"`, 'info');
+            };
+            
+            const newTournament = () => {
+                setRosters({ t1: [], t2: [], t3: [] });
+                setNames({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3' });
+                setColors({ t1: '#3B82F6', t2: '#8B5CF6', t3: '#10B981' });
+                setMatches([]);
+                setScratched([]);
+                setCurrentTournament('');
+                setTab('upload');
+                addToast('New tournament created', 'success');
+            };
+            
+            const renumber = (ms) => {
+                const byMat = { 1: [], 2: [], 3: [] };
+                ms.forEach(m => byMat[m.mat].push(m));
+                const result = [];
+                [1, 2, 3].forEach(mat => {
+                    byMat[mat].sort((a, b) => (a.order || 0) - (b.order || 0)).forEach((m, i) => {
+                        result.push({ ...m, num: mat * 100 + i, order: i });
+                    });
+                });
+                return result;
+            };
+            
+            const scratchWrestler = (wrestler) => {
+                const team = Object.keys(names).find(k => names[k] === wrestler.Team);
+                setRosters(prev => ({
+                    ...prev,
+                    [team]: prev[team].filter(w => w.Name !== wrestler.Name)
+                }));
+                
+                const updatedMatches = matches.filter(m => 
+                    !(m.w1.Name === wrestler.Name && m.w1.Team === wrestler.Team) &&
+                    !(m.w2.Name === wrestler.Name && m.w2.Team === wrestler.Team)
+                );
+                setMatches(renumber(updatedMatches));
+                setScratched(prev => [...prev, wrestler]);
+                if (selected?.Name === wrestler.Name) setSelected(null);
+                addToast(`${wrestler.Name} scratched`, 'warning');
+            };
+            
+            const restoreWrestler = (wrestler) => {
+                const team = Object.keys(names).find(k => names[k] === wrestler.Team);
+                setRosters(prev => ({
+                    ...prev,
+                    [team]: [...prev[team], wrestler]
+                }));
+                setScratched(prev => prev.filter(w => 
+                    !(w.Name === wrestler.Name && w.Team === wrestler.Team)
+                ));
+                addToast(`${wrestler.Name} restored`, 'success');
+            };
+            
+            const calcAge = (dob) => {
+                const d = new Date(dob);
+                const t = new Date();
+                return t.getFullYear() - d.getFullYear();
+            };
+            
+            const parseData = (text) => {
+                const errors = [];
+                const warnings = [];
+                const validRows = [];
+                
+                const lines = text.trim().split('\n');
+                
+                lines.forEach((line, index) => {
+                    const lineNum = index + 1;
+                    if (!line.trim()) return;
+                    
+                    const v = line.split(/[,\t]/).map(x => x.trim());
+                    const hasAnyContent = v.some(val => val !== '');
+                    if (!hasAnyContent) return;
+                    
+                    if (index === 0) {
+                        const firstValue = v[0]?.toLowerCase();
+                        const secondValue = v[1]?.toLowerCase();
+                        const thirdValue = v[2]?.toLowerCase();
+                        const headerKeywords = ['first', 'name', 'last', 'weight', 'dob', 'birth', 'age', 'exp', 'experience', 'skill', 'level'];
+                        const isLikelyHeader = headerKeywords.some(keyword => 
+                            firstValue?.includes(keyword) || 
+                            secondValue?.includes(keyword) || 
+                            thirdValue?.includes(keyword)
+                        );
+                        if (isLikelyHeader) return;
+                    }
+                    
+                    if (v.length < 6) {
+                        errors.push(`Line ${lineNum}: Not enough columns (found ${v.length}, need 6)`);
+                        return;
+                    }
+                    
+                    const firstName = v[0];
+                    const lastName = v[1];
+                    const weight = parseFloat(v[2]);
+                    const dob = v[3];
+                    const exp = parseInt(v[4]);
+                    const skill = parseInt(v[5]);
+                    
+                    if (!firstName || !lastName) {
+                        errors.push(`Line ${lineNum}: Missing name`);
+                        return;
+                    }
+                    
+                    if (isNaN(weight) || weight <= 0) {
+                        errors.push(`Line ${lineNum}: Invalid weight "${v[2]}"`);
+                        return;
+                    }
+                    if (weight < 30 || weight > 400) {
+                        warnings.push(`Line ${lineNum}: Unusual weight ${weight} lbs`);
+                    }
+                    
+                    const dobDate = new Date(dob);
+                    if (isNaN(dobDate.getTime())) {
+                        errors.push(`Line ${lineNum}: Invalid date "${dob}"`);
+                        return;
+                    }
+                    const age = calcAge(dob);
+                    if (age < 4 || age > 25) {
+                        warnings.push(`Line ${lineNum}: Unusual age ${age}`);
+                    }
+                    
+                    if (isNaN(exp) || exp < 0) {
+                        errors.push(`Line ${lineNum}: Invalid experience "${v[4]}"`);
+                        return;
+                    }
+                    
+                    if (isNaN(skill) || skill < 1 || skill > 5) {
+                        errors.push(`Line ${lineNum}: Invalid skill "${v[5]}" (must be 1-5)`);
+                        return;
+                    }
+                    
+                    validRows.push({
+                        FirstName: firstName,
+                        LastName: lastName,
+                        Weight: weight,
+                        DOB: dob,
+                        Exp: exp,
+                        Skill: skill,
+                        Age: age,
+                        Name: `${firstName} ${lastName}`
+                    });
+                });
+                
+                return { data: validRows, errors, warnings };
+            };
+            
+            const loadFile = (team, e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                
+                if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        try {
+                            const data = new Uint8Array(ev.target.result);
+                            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+                            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                            const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, raw: false, dateNF: 'mm/dd/yyyy' });
+                            const csvLines = jsonData.map(row => {
+                                const filteredRow = [];
+                                let foundContent = false;
+                                for (let i = 0; i < row.length; i++) {
+                                    if (!foundContent && (row[i] === null || row[i] === undefined || row[i] === '')) continue;
+                                    foundContent = true;
+                                    filteredRow.push(row[i] || '');
+                                }
+                                return filteredRow.join(',');
+                            }).join('\n');
+                            
+                            const result = parseData(csvLines);
+                            
+                            if (result.errors.length > 0) {
+                                addToast(`Errors in ${file.name}`, 'error');
+                                e.target.value = '';
+                                return;
+                            }
+                            
+                            if (result.warnings.length > 0) {
+                                addToast(`${result.warnings.length} warnings - check console`, 'warning');
+                                console.warn(result.warnings);
+                            }
+                            
+                            setRosters(p => ({ ...p, [team]: result.data.map(x => ({ ...x, Team: names[team] })) }));
+                            addToast(`Loaded ${result.data.length} wrestlers into ${names[team]}`, 'success');
+                        } catch (error) {
+                            addToast(`Error reading file: ${error.message}`, 'error');
+                        }
+                        e.target.value = '';
+                    };
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        try {
+                            const result = parseData(ev.target.result);
+                            
+                            if (result.errors.length > 0) {
+                                addToast(`Errors in ${file.name}`, 'error');
+                                e.target.value = '';
+                                return;
+                            }
+                            
+                            if (result.warnings.length > 0) {
+                                addToast(`${result.warnings.length} warnings - check console`, 'warning');
+                                console.warn(result.warnings);
+                            }
+                            
+                            setRosters(p => ({ ...p, [team]: result.data.map(x => ({ ...x, Team: names[team] })) }));
+                            addToast(`Loaded ${result.data.length} wrestlers into ${names[team]}`, 'success');
+                        } catch (error) {
+                            addToast(`Error reading file: ${error.message}`, 'error');
+                        }
+                        e.target.value = '';
+                    };
+                    reader.readAsText(file);
+                }
+            };
+            
+            const handlePaste = () => {
+                if (!pasteText.trim()) return;
+                
+                try {
+                    const result = parseData(pasteText);
+                    
+                    if (result.errors.length > 0) {
+                        addToast('Errors in pasted data', 'error');
+                        return;
+                    }
+                    
+                    if (result.warnings.length > 0) {
+                        addToast(`${result.warnings.length} warnings - check console`, 'warning');
+                        console.warn(result.warnings);
+                    }
+                    
+                    setRosters(p => ({ ...p, [pasteTeam]: result.data.map(x => ({ ...x, Team: names[pasteTeam] })) }));
+                    setPasteText('');
+                    setShowPasteDialog(false);
+                    addToast(`Loaded ${result.data.length} wrestlers into ${names[pasteTeam]}`, 'success');
+                } catch (error) {
+                    addToast(`Error parsing data: ${error.message}`, 'error');
+                }
+            };
+            
+            const calcScore = (w1, w2) => {
+                const wtDiff = Math.abs(w1.Weight - w2.Weight);
+                const wtPct = (wtDiff / Math.min(w1.Weight, w2.Weight)) * 100;
+                const ageDiff = Math.abs(w1.Age - w2.Age);
+                const skillDiff = Math.abs(w1.Skill - w2.Skill);
+                if (wtPct > settings.maxWt || ageDiff > settings.maxAge || skillDiff > settings.maxSkill || w1.Team === w2.Team) return null;
+                
+                const wtScore = wtPct <= settings.preferredWt ? wtPct * 2 : wtPct * 3;
+                return { score: wtScore + skillDiff * 1.5 + ageDiff * 0.5, wtPct, wtDiff, ageDiff, skillDiff };
+            };
+            
+            const generate = () => {
+                const all = [...rosters.t1, ...rosters.t2, ...rosters.t3];
+                const counts = {};
+                all.forEach(w => counts[`${w.Name}-${w.Team}`] = 0);
+                
+                const possible = [];
+                for (let i = 0; i < all.length; i++) {
+                    for (let j = i + 1; j < all.length; j++) {
+                        const q = calcScore(all[i], all[j]);
+                        if (q) {
+                            const avgSkill = (all[i].Skill + all[j].Skill) / 2;
+                            possible.push({ 
+                                w1: all[i], w2: all[j], 
+                                w1Key: `${all[i].Name}-${all[i].Team}`, 
+                                w2Key: `${all[j].Name}-${all[j].Team}`,
+                                avgSkill,
+                                ...q 
+                            });
+                        }
+                    }
+                }
+                possible.sort((a, b) => a.score - b.score);
+                
+                const assignMat = (match, matCounts) => {
+                    const skill = match.avgSkill;
+                    if (skill <= 1) {
+                        if (matCounts[1] < settings.maxPerMat) return 1;
+                        if (matCounts[2] < settings.maxPerMat) return 2;
+                        if (matCounts[3] < settings.maxPerMat) return 3;
+                    }
+                    if (skill <= 3) {
+                        if (matCounts[2] < settings.maxPerMat) return 2;
+                        if (matCounts[3] < settings.maxPerMat) return 3;
+                        if (matCounts[1] < settings.maxPerMat) return 1;
+                    }
+                    if (matCounts[3] < settings.maxPerMat) return 3;
+                    if (matCounts[2] < settings.maxPerMat) return 2;
+                    if (matCounts[1] < settings.maxPerMat) return 1;
+                    return null;
+                };
+                
+                const result = [];
+                const matCounts = { 1: 0, 2: 0, 3: 0 };
+                
+                for (const m of possible) {
+                    if (counts[m.w1Key] >= 3 || counts[m.w2Key] >= 3) continue;
+                    if (counts[m.w1Key] === 0 || counts[m.w2Key] === 0) {
+                        const mat = assignMat(m, matCounts);
+                        if (mat) {
+                            result.push({ ...m, mat, num: mat * 100 + matCounts[mat], order: matCounts[mat] });
+                            matCounts[mat]++;
+                            counts[m.w1Key]++;
+                            counts[m.w2Key]++;
+                        }
+                    }
+                }
+                
+                let iterations = 0;
+                const maxIterations = possible.length * 2;
+                
+                while (iterations < maxIterations) {
+                    iterations++;
+                    const minMatches = Math.min(...Object.values(counts));
+                    if (minMatches >= settings.minMatchesPerWrestler) break;
+                    
+                    let added = false;
+                    for (const m of possible) {
+                        if (counts[m.w1Key] >= 3 || counts[m.w2Key] >= 3) continue;
+                        if (counts[m.w1Key] < settings.minMatchesPerWrestler || counts[m.w2Key] < settings.minMatchesPerWrestler) {
+                            const bothNeed = counts[m.w1Key] < settings.minMatchesPerWrestler && counts[m.w2Key] < settings.minMatchesPerWrestler;
+                            const oneAtMin = counts[m.w1Key] === minMatches || counts[m.w2Key] === minMatches;
+                            
+                            if (bothNeed || oneAtMin) {
+                                const mat = assignMat(m, matCounts);
+                                if (mat) {
+                                    result.push({ ...m, mat, num: mat * 100 + matCounts[mat], order: matCounts[mat] });
+                                    matCounts[mat]++;
+                                    counts[m.w1Key]++;
+                                    counts[m.w2Key]++;
+                                    added = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if (!added) break;
+                    if (Object.values(matCounts).every(c => c >= settings.maxPerMat - 2)) break;
+                }
+                
+                setMatches(result);
+                addToHistory({ matches: result });
+                setTab('mats');
+                addToast(`Generated ${result.length} matches!`, 'success');
+            };
+            
+            const getMatches = (w) => matches.filter(m => (m.w1.Name === w.Name && m.w1.Team === w.Team) || (m.w2.Name === w.Name && m.w2.Team === w.Team));
+            
+            const delMatch = (num) => {
+                const newMatches = renumber(matches.filter(m => m.num !== num));
+                setMatches(newMatches);
+                addToHistory({ matches: newMatches });
+                addToast('Match deleted', 'info');
+            };
+            
+            const addMatch = (w, opp) => {
+                const q = calcScore(w, opp);
+                if (!q) return;
+                const mat = 1;
+                const newMatches = renumber([...matches, { w1: w, w2: opp, w1Key: `${w.Name}-${w.Team}`, w2Key: `${opp.Name}-${opp.Team}`, mat, order: matches.filter(m => m.mat === mat).length, ...q }]);
+                setMatches(newMatches);
+                addToHistory({ matches: newMatches });
+                setSelected(null);
+                addToast('Match added', 'success');
+            };
+            
+            const moveMat = (num, newMat) => {
+                const newMatches = renumber(matches.map(m => m.num === num ? { ...m, mat: newMat, order: matches.filter(x => x.mat === newMat).length } : m));
+                setMatches(newMatches);
+                addToHistory({ matches: newMatches });
+            };
+            
+            const reorderWithinMat = (mat, fromIndex, toIndex) => {
+                const matMatches = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
+                const [removed] = matMatches.splice(fromIndex, 1);
+                matMatches.splice(toIndex, 0, removed);
+                matMatches.forEach((m, i) => m.order = i);
+                const otherMatches = matches.filter(m => m.mat !== mat);
+                const newMatches = renumber([...otherMatches, ...matMatches]);
+                setMatches(newMatches);
+                addToHistory({ matches: newMatches });
+            };
+            
+            const getSuggestions = (w) => {
+                const all = [...rosters.t1, ...rosters.t2, ...rosters.t3];
+                const current = getMatches(w);
+                const matched = new Set(current.map(m => m.w1.Name === w.Name ? m.w2.Name : m.w1.Name));
+                return all.filter(x => x.Name !== w.Name && x.Team !== w.Team && !matched.has(x.Name))
+                    .map(x => ({ w: x, ...calcScore(w, x) }))
+                    .filter(x => x.score)
+                    .sort((a, b) => a.score - b.score)
+                    .slice(0, 10);
+            };
+            
+            const getColor = (team) => {
+                const k = Object.keys(names).find(x => names[x] === team);
+                return k ? colors[k] : '#6B7280';
+            };
+            
+            const needsRestHighlight = (wrestler, matchNum, mat) => {
+                const wrestlerMatches = matches
+                    .filter(m => m.mat === mat)
+                    .filter(m => (m.w1.Name === wrestler.Name && m.w1.Team === wrestler.Team) || 
+                                 (m.w2.Name === wrestler.Name && m.w2.Team === wrestler.Team))
+                    .sort((a, b) => a.order - b.order);
+                
+                if (wrestlerMatches.length < 2) return false;
+                
+                for (let i = 0; i < wrestlerMatches.length - 1; i++) {
+                    const gap = wrestlerMatches[i + 1].order - wrestlerMatches[i].order;
+                    if (gap <= settings.minRestBetweenBouts) {
+                        if (wrestlerMatches[i].num === matchNum || wrestlerMatches[i + 1].num === matchNum) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            };
+            
+            const exportExcel = () => {
+                const wb = XLSX.utils.book_new();
+                ['t1', 't2', 't3'].forEach(tk => {
+                    if (!rosters[tk].length) return;
+                    const data = [['', '', '', '', names[tk]]];
+                    rosters[tk].sort((a, b) => a.LastName.localeCompare(b.LastName)).forEach(w => {
+                        const ms = getMatches(w).sort((a, b) => a.num - b.num);
+                        const row = [w.Age, w.Weight, w.Skill, '', `${w.LastName}, ${w.FirstName}`];
+                        ms.forEach(m => {
+                            const opp = m.w1.Name === w.Name ? m.w2 : m.w1;
+                            row.push(m.num, `${opp.FirstName.charAt(0)} ${opp.LastName}`);
+                        });
+                        data.push(row);
+                    });
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    ws['!cols'] = [{ wch: 5 }, { wch: 8 }, { wch: 5 }, { wch: 2 }, { wch: 25 }, { wch: 8 }, { wch: 15 }];
+                    XLSX.utils.book_append_sheet(wb, ws, names[tk].substring(0, 2).toUpperCase());
+                });
+                
+                [1, 2, 3].forEach(mat => {
+                    const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.num - b.num);
+                    if (!ms.length) return;
+                    const data = [['', `Mat ${mat}`, '', '', '']];
+                    ms.forEach(m => {
+                        const getAbbr = (t) => {
+                            const k = Object.keys(names).find(x => names[x] === t);
+                            return k ? names[k].substring(0, 2).toUpperCase() : 'XX';
+                        };
+                        data.push([m.num, getAbbr(m.w1.Team), m.w1.Name, getAbbr(m.w2.Team), m.w2.Name]);
+                    });
+                    const ws = XLSX.utils.aoa_to_sheet(data);
+                    ws['!cols'] = [{ wch: 8 }, { wch: 5 }, { wch: 20 }, { wch: 5 }, { wch: 20 }];
+                    XLSX.utils.book_append_sheet(wb, ws, `Mat ${mat}`);
+                });
+                
+                const fileName = currentTournament ? `${currentTournament}.xlsx` : 'wrestling_matches.xlsx';
+                XLSX.writeFile(wb, fileName);
+                addToast('Excel file downloaded!', 'success');
+            };
+            
+            // Analytics calculations
+            const analytics = useMemo(() => {
+                const all = [...rosters.t1, ...rosters.t2, ...rosters.t3];
+                const matchCounts = {};
+                all.forEach(w => matchCounts[`${w.Name}-${w.Team}`] = 0);
+                matches.forEach(m => {
+                    matchCounts[m.w1Key]++;
+                    matchCounts[m.w2Key]++;
+                });
+                
+                const distribution = {
+                    0: 0, 1: 0, 2: 0, 3: 0, '4+': 0
+                };
+                Object.values(matchCounts).forEach(count => {
+                    if (count >= 4) distribution['4+']++;
+                    else distribution[count]++;
+                });
+                
+                const qualityScores = matches.map(m => {
+                    let score = 0;
+                    if (m.wtPct <= 5) score += 3;
+                    else if (m.wtPct <= 10) score += 2;
+                    else score += 1;
+                    
+                    if (m.ageDiff === 0) score += 2;
+                    else if (m.ageDiff === 1) score += 1;
+                    
+                    if (m.skillDiff === 0) score += 2;
+                    else if (m.skillDiff <= 2) score += 1;
+                    
+                    return score;
+                });
+                
+                const avgQuality = qualityScores.length > 0 
+                    ? (qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length).toFixed(1)
+                    : 0;
+                
+                const restViolations = matches.filter(m => {
+                    return needsRestHighlight(m.w1, m.num, m.mat) || needsRestHighlight(m.w2, m.num, m.mat);
+                }).length;
+                
+                return {
+                    totalWrestlers: all.length,
+                    totalMatches: matches.length,
+                    distribution,
+                    avgMatchesPerWrestler: all.length > 0 ? (matches.length * 2 / all.length).toFixed(1) : 0,
+                    avgQuality,
+                    restViolations,
+                    matCounts: {
+                        1: matches.filter(m => m.mat === 1).length,
+                        2: matches.filter(m => m.mat === 2).length,
+                        3: matches.filter(m => m.mat === 3).length
+                    }
+                };
+            }, [rosters, matches, settings]);
+            
+            const total = rosters.t1.length + rosters.t2.length + rosters.t3.length;
+            
+            // Filter and sort wrestlers
+            const getFilteredRoster = (teamKey) => {
+                let filtered = rosters[teamKey].filter(w => 
+                    w.Name.toLowerCase().includes(filterText.toLowerCase())
+                );
+                
+                switch(sortBy) {
+                    case 'name':
+                        filtered.sort((a, b) => a.LastName.localeCompare(b.LastName));
+                        break;
+                    case 'weight':
+                        filtered.sort((a, b) => a.Weight - b.Weight);
+                        break;
+                    case 'skill':
+                        filtered.sort((a, b) => b.Skill - a.Skill);
+                        break;
+                    case 'matches':
+                        filtered.sort((a, b) => getMatches(b).length - getMatches(a).length);
+                        break;
+                }
+                
+                return filtered;
+            };
+            
+            return (
+                <div className={`min-h-screen ${darkMode ? 'dark-mode' : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'}`}>
+                    <ToastContainer toasts={toasts} removeToast={removeToast} />
+                    
+                    <div className="max-w-7xl mx-auto p-4">
+                        {/* Header */}
+                        <div className="glass rounded-2xl shadow-2xl mb-6 overflow-hidden animate-slide-in">
+                            <div className="gradient-bg text-white p-6">
+                                <div className="flex justify-between items-center flex-wrap gap-4">
+                                    <div>
+                                        <h1 className="text-3xl font-bold mb-2">Wrestling Match Maker Pro</h1>
+                                        <p className="text-blue-100">
+                                            {currentTournament ? (
+                                                <span className="flex items-center gap-2">
+                                                    <span className="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                                                    {currentTournament} (auto-saving)
+                                                </span>
+                                            ) : 'Smart pairing for 2-3 team scrambles'}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2 flex-wrap">
+                                        <button onClick={newTournament} className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 text-sm shadow-lg">
+                                            🆕 New
+                                        </button>
+                                        <button onClick={() => setShowSaveDialog(true)} className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 text-sm shadow-lg">
+                                            💾 Save
+                                        </button>
+                                        {savedTournaments.length > 0 && (
+                                            <>
+                                                <select onChange={(e) => e.target.value && loadTournament(e.target.value)} className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold cursor-pointer text-sm shadow-lg">
+                                                    <option value="">📂 Load...</option>
+                                                    {savedTournaments.map(name => (
+                                                        <option key={name} value={name}>{name}</option>
+                                                    ))}
+                                                </select>
+                                                <button onClick={() => setShowManageDialog(true)} className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 text-sm shadow-lg">
+                                                    ⚙️ Manage
+                                                </button>
+                                            </>
+                                        )}
+                                        {scratched.length > 0 && (
+                                            <button onClick={() => setShowScratchDialog(true)} className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-yellow-600 transition-all transform hover:scale-105 text-sm shadow-lg">
+                                                ⚠️ Scratches ({scratched.length})
+                                            </button>
+                                        )}
+                                        {matches.length > 0 && (
+                                            <>
+                                                <button onClick={() => setShowAnalytics(true)} className="bg-purple-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-600 transition-all transform hover:scale-105 text-sm shadow-lg">
+                                                    📊 Analytics
+                                                </button>
+                                                <button onClick={exportExcel} className="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-all transform hover:scale-105 text-sm shadow-lg">
+                                                    📥 Export
+                                                </button>
+                                            </>
+                                        )}
+                                        {historyIndex > 0 && (
+                                            <button onClick={undo} className="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition-all transform hover:scale-105 text-sm shadow-lg" title="Undo (Ctrl+Z)">
+                                                ↶
+                                            </button>
+                                        )}
+                                        {historyIndex < history.length - 1 && (
+                                            <button onClick={redo} className="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition-all transform hover:scale-105 text-sm shadow-lg" title="Redo (Ctrl+Y)">
+                                                ↷
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* Tabs */}
+                            <div className="flex border-b bg-white">
+                                <button onClick={() => setTab('upload')} className={`tab-button px-6 py-4 font-semibold ${tab === 'upload' ? 'active text-purple-600' : 'text-gray-600 hover:text-purple-600'}`}>
+                                    📤 Upload
+                                </button>
+                                <button onClick={() => setTab('settings')} className={`tab-button px-6 py-4 font-semibold ${tab === 'settings' ? 'active text-purple-600' : 'text-gray-600 hover:text-purple-600'}`}>
+                                    ⚙️ Settings
+                                </button>
+                                <button onClick={() => setTab('teams')} disabled={!matches.length} className={`tab-button px-6 py-4 font-semibold ${tab === 'teams' ? 'active text-purple-600' : 'text-gray-600 hover:text-purple-600'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                                    👥 Teams {matches.length > 0 && `(${matches.length})`}
+                                </button>
+                                <button onClick={() => setTab('mats')} disabled={!matches.length} className={`tab-button px-6 py-4 font-semibold ${tab === 'mats' ? 'active text-purple-600' : 'text-gray-600 hover:text-purple-600'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+                                    🥋 Mats
+                                </button>
+                            </div>
+                        </div>
+                        
+                        {/* Content */}
+                        <div className="glass rounded-2xl shadow-xl p-6 animate-fade-in">
+                            {tab === 'upload' && (
+                                <div className="space-y-6">
+                                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-l-4 border-purple-500 rounded-lg p-4">
+                                        <p className="text-sm font-medium text-gray-700">
+                                            <strong>Format:</strong> FirstName, LastName, Weight, DOB(MM/DD/YYYY), Experience, Skill (1-5)
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="flex justify-end">
+                                        <button onClick={() => setShowPasteDialog(true)} className="btn-primary text-white px-6 py-3 rounded-lg font-semibold shadow-lg">
+                                            📋 Paste Data
+                                        </button>
+                                    </div>
+                                    
+                                    {['t1', 't2', 't3'].map((tk) => (
+                                        <div key={tk} className="border-2 border-gray-200 rounded-xl p-6 hover:border-purple-400 transition-all">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <input 
+                                                        type="text" 
+                                                        value={names[tk]} 
+                                                        onChange={(e) => setNames(p => ({ ...p, [tk]: e.target.value }))} 
+                                                        className="text-xl font-bold border-b-2 border-purple-300 px-2 py-1 outline-none focus:border-purple-500 transition-colors"
+                                                    />
+                                                    <input 
+                                                        type="color" 
+                                                        value={colors[tk]} 
+                                                        onChange={(e) => setColors(p => ({ ...p, [tk]: e.target.value }))} 
+                                                        className="w-12 h-12 rounded-lg cursor-pointer border-2 border-gray-300"
+                                                    />
+                                                </div>
+                                                <span className="text-3xl font-bold text-gray-400">{rosters[tk].length}</span>
+                                            </div>
+                                            <label className="block">
+                                                <div className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-purple-50 to-blue-50 text-purple-700 rounded-xl border-2 border-dashed border-purple-300 hover:border-purple-500 hover:bg-purple-100 cursor-pointer transition-all">
+                                                    <span className="text-lg font-semibold">📁 Upload CSV/Excel</span>
+                                                </div>
+                                                <input type="file" accept=".csv,.xlsx,.xls" onChange={(e) => loadFile(tk, e)} className="hidden" />
+                                            </label>
+                                            {rosters[tk].length > 0 && (
+                                                <div className="mt-3 p-3 bg-green-50 rounded-lg text-sm text-green-800 font-medium animate-slide-in">
+                                                    ✓ {rosters[tk].length} wrestlers loaded
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                    
+                                    <button 
+                                        onClick={generate} 
+                                        disabled={!total} 
+                                        className="w-full btn-primary text-white py-4 rounded-xl font-bold text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        🎯 Generate Matchups
+                                    </button>
+                                </div>
+                            )}
+                            
+                            {tab === 'settings' && (
+                                <div className="space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-gray-700">Max Weight Difference (%)</label>
+                                            <input 
+                                                type="number" 
+                                                value={settings.maxWt} 
+                                                onChange={(e) => setSettings(p => ({ ...p, maxWt: parseFloat(e.target.value) }))} 
+                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-gray-700">Preferred Weight Difference (%)</label>
+                                            <input 
+                                                type="number" 
+                                                value={settings.preferredWt} 
+                                                onChange={(e) => setSettings(p => ({ ...p, preferredWt: parseFloat(e.target.value) }))} 
+                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-gray-700">Max Age Difference (years)</label>
+                                            <input 
+                                                type="number" 
+                                                value={settings.maxAge} 
+                                                onChange={(e) => setSettings(p => ({ ...p, maxAge: parseInt(e.target.value) }))} 
+                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-gray-700">Max Skill Difference</label>
+                                            <input 
+                                                type="number" 
+                                                value={settings.maxSkill} 
+                                                onChange={(e) => setSettings(p => ({ ...p, maxSkill: parseInt(e.target.value) }))} 
+                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-gray-700">Min Matches per Wrestler</label>
+                                            <input 
+                                                type="number" 
+                                                value={settings.minMatchesPerWrestler} 
+                                                onChange={(e) => setSettings(p => ({ ...p, minMatchesPerWrestler: parseInt(e.target.value) }))} 
+                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-gray-700">Max Matches per Mat</label>
+                                            <input 
+                                                type="number" 
+                                                value={settings.maxPerMat} 
+                                                onChange={(e) => setSettings(p => ({ ...p, maxPerMat: parseInt(e.target.value) }))} 
+                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+                                            />
+                                            <p className="text-xs text-gray-500 mt-1">Recommended: 25 (max 28-30)</p>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="block text-sm font-semibold text-gray-700">Min Rest Between Bouts</label>
+                                            <input 
+                                                type="number" 
+                                                value={settings.minRestBetweenBouts} 
+                                                onChange={(e) => setSettings(p => ({ ...p, minRestBetweenBouts: parseInt(e.target.value) }))} 
+                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+                                            />
+                                            <p className="text-xs text-gray-500 mt-1">Number of matches between bouts for adequate rest</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 border-purple-500 rounded-xl p-6">
+                                        <h3 className="font-bold text-lg mb-4 text-gray-800">📋 Current Rules Summary</h3>
+                                        <ul className="space-y-2 text-sm text-gray-700">
+                                            <li className="flex items-center gap-2">
+                                                <span className="text-purple-600">⚖️</span> Weight within {settings.maxWt}% (prefer {settings.preferredWt}%)
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <span className="text-purple-600">🎂</span> Age within {settings.maxAge} year(s)
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <span className="text-purple-600">🥋</span> Skill within {settings.maxSkill} points
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <span className="text-purple-600">🎯</span> Each wrestler gets {settings.minMatchesPerWrestler}-3 matches
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <span className="text-purple-600">📊</span> Maximum {settings.maxPerMat} matches per mat
+                                            </li>
+                                            <li className="flex items-center gap-2">
+                                                <span className="text-purple-600">⏱️</span> Minimum {settings.minRestBetweenBouts} matches rest between bouts
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {tab === 'teams' && matches.length > 0 && (
+                                <div>
+                                    <div className="flex gap-2 border-b mb-6 flex-wrap">
+                                        {['t1', 't2', 't3'].map(tk => rosters[tk].length > 0 && (
+                                            <button 
+                                                key={tk} 
+                                                onClick={() => setTeamView(tk)} 
+                                                className={`px-6 py-3 font-semibold rounded-t-lg transition-all ${teamView === tk ? 'border-b-4' : 'hover:bg-gray-100'}`}
+                                                style={teamView === tk ? { borderColor: colors[tk], color: colors[tk] } : {}}
+                                            >
+                                                {names[tk]} ({rosters[tk].length})
+                                            </button>
+                                        ))}
+                                    </div>
+                                    
+                                    <div className="mb-6 flex gap-4 flex-wrap">
+                                        <input
+                                            type="text"
+                                            placeholder="🔍 Search wrestlers..."
+                                            value={filterText}
+                                            onChange={(e) => setFilterText(e.target.value)}
+                                            className="flex-1 border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+                                        />
+                                        <select
+                                            value={sortBy}
+                                            onChange={(e) => setSortBy(e.target.value)}
+                                            className="border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
+                                        >
+                                            <option value="name">Sort by Name</option>
+                                            <option value="weight">Sort by Weight</option>
+                                            <option value="skill">Sort by Skill</option>
+                                            <option value="matches">Sort by Matches</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-12 gap-6">
+                                        <div className="col-span-12 lg:col-span-5 space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar">
+                                            {getFilteredRoster(teamView).map(w => {
+                                                const ms = getMatches(w);
+                                                const c = getColor(w.Team);
+                                                return (
+                                                    <div 
+                                                        key={w.Name} 
+                                                        className={`wrestler-card border-2 rounded-xl p-4 cursor-pointer ${selected?.Name === w.Name ? 'ring-4 ring-purple-400 shadow-xl' : 'hover:shadow-lg'}`}
+                                                        style={{ borderLeftColor: c, borderLeftWidth: '6px' }}
+                                                    >
+                                                        <div className="flex justify-between mb-2">
+                                                            <div className="flex-1" onClick={() => setSelected(w)}>
+                                                                <div className="font-bold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                                <div className="text-sm text-gray-600 flex gap-3 mt-1">
+                                                                    <span>⚖️ {w.Weight} lbs</span>
+                                                                    <span>🎂 Age {w.Age}</span>
+                                                                    <span>🥋 Skill {w.Skill}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="flex flex-col items-center">
+                                                                    <span className="text-2xl font-bold" style={{ color: c }}>{ms.length}</span>
+                                                                    <span className="text-xs text-gray-500">matches</span>
+                                                                </div>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); scratchWrestler(w); }}
+                                                                    className="text-red-600 hover:text-red-800 text-xs font-semibold px-3 py-2 rounded-lg hover:bg-red-50 transition-all"
+                                                                    title="Scratch wrestler"
+                                                                >
+                                                                    ✕ Scratch
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        {ms.map(m => {
+                                                            const opp = m.w1.Name === w.Name ? m.w2 : m.w1;
+                                                            const oc = getColor(opp.Team);
+                                                            return (
+                                                                <div 
+                                                                    key={m.num} 
+                                                                    className="flex justify-between items-center text-xs p-2 rounded-lg mb-1 hover:bg-gray-50 transition-all"
+                                                                    style={{ backgroundColor: oc + '15', borderLeft: `3px solid ${oc}` }}
+                                                                >
+                                                                    <span className="font-mono font-bold">
+                                                                        Match #{m.num} vs <span style={{ color: oc }}>{opp.Name}</span>
+                                                                    </span>
+                                                                    <button 
+                                                                        onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} 
+                                                                        className="text-red-600 hover:text-red-800 font-bold px-2 py-1 rounded hover:bg-red-100"
+                                                                    >
+                                                                        ✕
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        
+                                        <div className="col-span-12 lg:col-span-7">
+                                            {selected ? (
+                                                <div className="space-y-4">
+                                                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-xl border-l-4 border-purple-500">
+                                                        <h3 className="font-bold text-lg">💪 Suggested Opponents for {selected.Name}</h3>
+                                                        <p className="text-sm text-gray-600">Click to add match</p>
+                                                    </div>
+                                                    
+                                                    {getMatches(selected).length > 0 && (
+                                                        <div className="p-4 bg-blue-50 rounded-xl border-l-4 border-blue-500">
+                                                            <h4 className="font-semibold mb-3">📋 Current Matchups ({getMatches(selected).length})</h4>
+                                                            <div className="space-y-3">
+                                                                {getMatches(selected).map(m => {
+                                                                    const opp = m.w1.Name === selected.Name ? m.w2 : m.w1;
+                                                                    const oc = getColor(opp.Team);
+                                                                    return (
+                                                                        <div key={m.num} className="bg-white border-2 rounded-xl p-3 match-card">
+                                                                            <div className="flex justify-between items-start mb-2">
+                                                                                <div>
+                                                                                    <div className="font-bold text-lg" style={{ color: oc }}>
+                                                                                        {opp.Name}
+                                                                                    </div>
+                                                                                    <div className="text-sm text-gray-600 mt-1">
+                                                                                        {opp.Team} • {opp.Weight} lbs • Age {opp.Age} • Skill {opp.Skill}
+                                                                                    </div>
+                                                                                </div>
+                                                                                <div className="font-mono text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
+                                                                                    #{m.num}
+                                                                                </div>
+                                                                            </div>
+                                                                            <div className="grid grid-cols-4 gap-2 mt-3">
+                                                                                <div className={`p-2 rounded-lg text-center text-xs font-semibold ${m.wtPct <= 5 ? 'bg-green-100 text-green-800' : m.wtPct <= 10 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
+                                                                                    Wt: {m.wtPct.toFixed(1)}%
+                                                                                </div>
+                                                                                <div className={`p-2 rounded-lg text-center text-xs font-semibold ${m.ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                                    Age: {m.ageDiff}
+                                                                                </div>
+                                                                                <div className={`p-2 rounded-lg text-center text-xs font-semibold ${m.skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                                    Skill: {m.skillDiff}
+                                                                                </div>
+                                                                                <div className={`p-2 rounded-lg text-center text-xs font-semibold ${Math.abs(selected.Exp - opp.Exp) <= 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                                    Exp: {Math.abs(selected.Exp - opp.Exp)}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                                        {getSuggestions(selected).map(({ w, wtPct, skillDiff }) => {
+                                                            const c = getColor(w.Team);
+                                                            return (
+                                                                <div 
+                                                                    key={w.Name} 
+                                                                    onClick={() => addMatch(selected, w)} 
+                                                                    className="border-2 rounded-xl p-4 hover:border-purple-400 hover:shadow-lg cursor-pointer transition-all match-card"
+                                                                >
+                                                                    <div className="flex justify-between items-start">
+                                                                        <div>
+                                                                            <div className="font-bold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                                            <div className="text-sm text-gray-600">{w.Team}</div>
+                                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                                {w.Weight} lbs • Age {w.Age} • Skill {w.Skill}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div className="flex gap-2">
+                                                                            <span className={`text-xs px-3 py-1 rounded-lg font-semibold ${wtPct <= 5 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                                Wt: {wtPct.toFixed(1)}%
+                                                                            </span>
+                                                                            <span className={`text-xs px-3 py-1 rounded-lg font-semibold ${skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                                Skill: {skillDiff}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="h-full flex items-center justify-center text-gray-400">
+                                                    <div className="text-center">
+                                                        <div className="text-6xl mb-4">👈</div>
+                                                        <p className="text-lg">Select a wrestler to manage matchups</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                            
+                            {tab === 'mats' && matches.length > 0 && (
+                                <div>
+                                    <div className="mb-6 p-4 bg-orange-50 border-l-4 border-orange-500 rounded-xl">
+                                        <p className="text-sm text-orange-800 font-medium">
+                                            <strong>⚠️ Rest Period Alerts:</strong> Matches highlighted in orange indicate wrestlers competing within {settings.minRestBetweenBouts} matches of each other on the same mat.
+                                        </p>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-h-[700px] overflow-y-auto custom-scrollbar">
+                                        {[1, 2, 3].map(mat => {
+                                            const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
+                                            return (
+                                                <div 
+                                                    key={mat} 
+                                                    className="border-2 border-gray-300 rounded-xl overflow-hidden"
+                                                    onDragOver={(e) => e.preventDefault()} 
+                                                    onDrop={(e) => {
+                                                        e.preventDefault();
+                                                        if (dragged) {
+                                                            if (draggedFromMat !== mat) {
+                                                                moveMat(dragged.num, mat);
+                                                            }
+                                                            setDragged(null);
+                                                            setDraggedFromMat(null);
+                                                        }
+                                                    }}
+                                                >
+                                                    <div className="gradient-bg text-white p-4 font-bold flex justify-between sticky top-0 z-10">
+                                                        <span className="text-xl">🥋 Mat {mat}</span>
+                                                        <span className="text-xl">{ms.length}</span>
+                                                    </div>
+                                                    <div className="p-3 space-y-3 min-h-[200px] bg-gray-50">
+                                                        {ms.map((m, index) => {
+                                                            const c1 = getColor(m.w1.Team);
+                                                            const c2 = getColor(m.w2.Team);
+                                                            const w1NeedsRest = needsRestHighlight(m.w1, m.num, mat);
+                                                            const w2NeedsRest = needsRestHighlight(m.w2, m.num, mat);
+                                                            const anyNeedsRest = w1NeedsRest || w2NeedsRest;
+                                                            
+                                                            return (
+                                                                <div 
+                                                                    key={m.num} 
+                                                                    draggable 
+                                                                    onDragStart={() => { 
+                                                                        setDragged(m); 
+                                                                        setDraggedFromMat(mat);
+                                                                    }} 
+                                                                    onDragEnd={() => {
+                                                                        setDragged(null);
+                                                                        setDraggedFromMat(null);
+                                                                    }}
+                                                                    onDragOver={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                    }}
+                                                                    onDrop={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        if (dragged && draggedFromMat === mat && dragged.num !== m.num) {
+                                                                            const fromIndex = ms.findIndex(x => x.num === dragged.num);
+                                                                            const toIndex = index;
+                                                                            reorderWithinMat(mat, fromIndex, toIndex);
+                                                                        }
+                                                                    }}
+                                                                    className={`match-card border-2 rounded-xl p-3 cursor-move bg-white ${
+                                                                        dragged?.num === m.num ? 'dragging' : ''
+                                                                    } ${anyNeedsRest ? 'ring-4 ring-orange-400 bg-orange-50' : 'hover:shadow-lg'}`}
+                                                                >
+                                                                    <div className="font-mono text-sm font-bold mb-3 flex items-center justify-between">
+                                                                        <span className="flex items-center gap-2">
+                                                                            <span className="text-gray-400">⋮⋮</span>
+                                                                            <span className="bg-gray-200 px-3 py-1 rounded-lg">#{m.num}</span>
+                                                                        </span>
+                                                                        {anyNeedsRest && (
+                                                                            <span className="text-orange-600 text-xs font-bold bg-orange-100 px-2 py-1 rounded-lg">
+                                                                                ⚠️ {w1NeedsRest && w2NeedsRest ? 'Both' : w1NeedsRest ? m.w1.FirstName : m.w2.FirstName}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="grid grid-cols-2 gap-3">
+                                                                        <div 
+                                                                            className={`p-3 rounded-lg font-semibold border-l-4 ${w1NeedsRest ? 'ring-2 ring-orange-400' : ''}`}
+                                                                            style={{ backgroundColor: c1 + '25', borderLeftColor: c1, color: c1 }}
+                                                                        >
+                                                                            <div className="font-bold">{m.w1.Name}</div>
+                                                                            <div className="text-gray-600 font-normal text-xs mt-1">{m.w1.Weight} lbs</div>
+                                                                        </div>
+                                                                        <div 
+                                                                            className={`p-3 rounded-lg font-semibold border-l-4 ${w2NeedsRest ? 'ring-2 ring-orange-400' : ''}`}
+                                                                            style={{ backgroundColor: c2 + '25', borderLeftColor: c2, color: c2 }}
+                                                                        >
+                                                                            <div className="font-bold">{m.w2.Name}</div>
+                                                                            <div className="text-gray-600 font-normal text-xs mt-1">{m.w2.Weight} lbs</div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {ms.length === 0 && (
+                                                            <div className="text-center text-gray-400 py-12">
+                                                                <div className="text-4xl mb-2">📭</div>
+                                                                <p className="text-sm">Drag matches here</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    {/* Modals */}
+                    <Modal isOpen={showSaveDialog} onClose={() => setShowSaveDialog(false)} title="💾 Save Tournament" size="sm">
+                        <input 
+                            type="text" 
+                            value={saveName} 
+                            onChange={(e) => setSaveName(e.target.value)} 
+                            placeholder="Tournament name" 
+                            className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 mb-4 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none" 
+                            autoFocus 
+                            onKeyPress={(e) => e.key === 'Enter' && saveNew()}
+                        />
+                        <div className="flex gap-3">
+                            <button onClick={saveNew} className="flex-1 btn-primary text-white px-6 py-3 rounded-lg font-semibold shadow-lg">Save</button>
+                            <button onClick={() => { setShowSaveDialog(false); setSaveName(''); }} className="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-400 transition-all">Cancel</button>
+                        </div>
+                    </Modal>
+                    
+                    <Modal isOpen={showManageDialog} onClose={() => setShowManageDialog(false)} title="⚙️ Manage Tournaments" size="md">
+                        {savedTournaments.length === 0 ? (
+                            <p className="text-gray-600 text-center py-8">No saved tournaments yet.</p>
+                        ) : (
+                            <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                {savedTournaments.map(name => {
+                                    const saved = JSON.parse(localStorage.getItem('wrestlingTournaments') || '{}');
+                                    const lastMod = saved[name]?.lastModified ? new Date(saved[name].lastModified).toLocaleDateString() : 'Unknown';
+                                    return (
+                                        <div key={name} className="flex justify-between items-center p-4 border-2 border-gray-200 rounded-xl hover:border-purple-400 transition-all">
+                                            <div>
+                                                <div className="font-semibold text-lg">{name}</div>
+                                                <div className="text-sm text-gray-500">📅 Last modified: {lastMod}</div>
+                                            </div>
+                                            <button 
+                                                onClick={() => deleteTournament(name)} 
+                                                className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-all transform hover:scale-105"
+                                            >
+                                                🗑️ Delete
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </Modal>
+                    
+                    <Modal isOpen={showPasteDialog} onClose={() => setShowPasteDialog(false)} title="📋 Paste Roster Data" size="lg">
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-semibold mb-2">Select Team</label>
+                                <select 
+                                    value={pasteTeam} 
+                                    onChange={(e) => setPasteTeam(e.target.value)} 
+                                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
+                                >
+                                    <option value="t1">{names.t1}</option>
+                                    <option value="t2">{names.t2}</option>
+                                    <option value="t3">{names.t3}</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold mb-2">Paste Data (FirstName, LastName, Weight, DOB, Exp, Skill)</label>
+                                <textarea 
+                                    value={pasteText} 
+                                    onChange={(e) => setPasteText(e.target.value)} 
+                                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 h-64 font-mono text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none" 
+                                    placeholder="John,Doe,150,01/15/2010,2,3&#10;Jane,Smith,145,03/20/2011,1,2"
+                                />
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={handlePaste} className="flex-1 btn-primary text-white px-6 py-3 rounded-lg font-semibold shadow-lg">Import</button>
+                                <button onClick={() => { setShowPasteDialog(false); setPasteText(''); }} className="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-400 transition-all">Cancel</button>
+                            </div>
+                        </div>
+                    </Modal>
+                    
+                    <Modal isOpen={showScratchDialog} onClose={() => setShowScratchDialog(false)} title="⚠️ Scratched Wrestlers" size="md">
+                        <p className="text-sm text-gray-600 mb-4">
+                            These wrestlers were removed from the tournament. Click "Restore" to add them back.
+                        </p>
+                        {scratched.length === 0 ? (
+                            <p className="text-gray-600 text-center py-8">No scratched wrestlers.</p>
+                        ) : (
+                            <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                {scratched.map((w, idx) => {
+                                    const c = getColor(w.Team);
+                                    return (
+                                        <div 
+                                            key={idx} 
+                                            className="flex justify-between items-center p-4 border-2 rounded-xl hover:border-purple-400 transition-all" 
+                                            style={{ borderLeftColor: c, borderLeftWidth: '4px' }}
+                                        >
+                                            <div>
+                                                <div className="font-semibold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                <div className="text-sm text-gray-600">
+                                                    {w.Team} • {w.Weight} lbs • Age {w.Age} • Skill {w.Skill}
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => restoreWrestler(w)}
+                                                className="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-all transform hover:scale-105"
+                                            >
+                                                ↻ Restore
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </Modal>
+                    
+                    <Modal isOpen={showAnalytics} onClose={() => setShowAnalytics(false)} title="📊 Tournament Analytics" size="xl">
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <StatCard title="Total Wrestlers" value={analytics.totalWrestlers} icon="👥" color="blue" />
+                                <StatCard title="Total Matches" value={analytics.totalMatches} icon="🤼" color="purple" />
+                                <StatCard title="Avg Matches/Wrestler" value={analytics.avgMatchesPerWrestler} icon="📊" color="green" />
+                                <StatCard title="Rest Violations" value={analytics.restViolations} icon="⚠️" color="orange" />
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="glass rounded-xl p-6">
+                                    <h3 className="font-bold text-lg mb-4">Match Distribution</h3>
+                                    <div className="space-y-3">
+                                        {Object.entries(analytics.distribution).map(([count, wrestlers]) => (
+                                            <div key={count} className="flex justify-between items-center">
+                                                <span className="font-medium">{count} matches:</span>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-48 bg-gray-200 rounded-full h-4 overflow-hidden">
+                                                        <div 
+                                                            className="bg-gradient-to-r from-purple-500 to-blue-500 h-full rounded-full transition-all"
+                                                            style={{ width: `${(wrestlers / analytics.totalWrestlers) * 100}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    <span className="font-bold w-12 text-right">{wrestlers}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                
+                                <div className="glass rounded-xl p-6">
+                                    <h3 className="font-bold text-lg mb-4">Mat Distribution</h3>
+                                    <div className="space-y-3">
+                                        {[1, 2, 3].map(mat => (
+                                            <div key={mat} className="flex justify-between items-center">
+                                                <span className="font-medium">Mat {mat}:</span>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-48 bg-gray-200 rounded-full h-4 overflow-hidden">
+                                                        <div 
+                                                            className="bg-gradient-to-r from-green-500 to-teal-500 h-full rounded-full transition-all"
+                                                            style={{ width: `${(analytics.matCounts[mat] / analytics.totalMatches) * 100}%` }}
+                                                        ></div>
+                                                    </div>
+                                                    <span className="font-bold w-12 text-right">{analytics.matCounts[mat]}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="glass rounded-xl p-6">
+                                <h3 className="font-bold text-lg mb-4">Quality Score</h3>
+                                <div className="flex items-center gap-4">
+                                    <div className="text-5xl font-bold gradient-text">{analytics.avgQuality}</div>
+                                    <div className="flex-1">
+                                        <div className="text-sm text-gray-600 mb-2">Average match quality (out of 7)</div>
+                                        <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+                                            <div 
+                                                className="bg-gradient-to-r from-purple-500 to-blue-500 h-full rounded-full transition-all flex items-center justify-end px-3 text-white text-sm font-bold"
+                                                style={{ width: `${(analytics.avgQuality / 7) * 100}%` }}
+                                            >
+                                                {((analytics.avgQuality / 7) * 100).toFixed(0)}%
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </Modal>
+                </div>
+            );
+        };
+        
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
