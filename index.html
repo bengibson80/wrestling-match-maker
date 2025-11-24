@@ -15,11 +15,20 @@
         
         * {
             font-family: 'Inter', sans-serif;
-            font-size: 90%; /* Scale everything down by 10% */
         }
         
         body {
-            font-size: 14px; /* Reduced from default 16px */
+            font-size: 14px;
+        }
+        
+        /* Keep buttons, tabs, and controls at normal size */
+        button, select, input[type="text"], .tab-button {
+            font-size: 100% !important;
+        }
+        
+        /* Make content areas more compact */
+        .wrestler-card, .match-card {
+            font-size: 90%;
         }
         
         @keyframes slideIn {
@@ -1156,7 +1165,8 @@
                                                             type="color" 
                                                             value={colors[tk]} 
                                                             onChange={(e) => setColors(p => ({ ...p, [tk]: e.target.value }))} 
-                                                            className="w-12 h-12 rounded-lg cursor-pointer border-2 border-gray-300"
+                                                            className="w-8 h-8 rounded cursor-pointer border-2 border-gray-300 hover:border-purple-400 transition-colors"
+                                                            style={{ padding: '2px' }}
                                                         />
                                                     </div>
                                                 </div>
@@ -1561,10 +1571,16 @@
                                                                     onDrop={(e) => {
                                                                         e.preventDefault();
                                                                         e.stopPropagation();
-                                                                        if (dragged && draggedFromMat === mat && dragged.num !== m.num) {
-                                                                            const fromIndex = ms.findIndex(x => x.num === dragged.num);
-                                                                            const toIndex = index;
-                                                                            reorderWithinMat(mat, fromIndex, toIndex);
+                                                                        if (dragged) {
+                                                                            if (draggedFromMat !== mat) {
+                                                                                // Cross-mat drag - move to this mat
+                                                                                moveMat(dragged.num, mat);
+                                                                            } else if (dragged.num !== m.num) {
+                                                                                // Same mat - reorder
+                                                                                const fromIndex = ms.findIndex(x => x.num === dragged.num);
+                                                                                const toIndex = index;
+                                                                                reorderWithinMat(mat, fromIndex, toIndex);
+                                                                            }
                                                                         }
                                                                     }}
                                                                     className={`match-card border rounded-lg p-1.5 cursor-move bg-white text-xs ${
