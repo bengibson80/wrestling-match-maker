@@ -1013,7 +1013,38 @@
                     });
                     
                     const ws = XLSX.utils.aoa_to_sheet(data);
+                    
+                    // Set column widths
                     ws['!cols'] = [{ wch: 5 }, { wch: 8 }, { wch: 5 }, { wch: 2 }, { wch: 25 }, { wch: 8 }, { wch: 18 }];
+                    
+                    // Configure print settings for portrait orientation
+                    ws['!margins'] = {
+                        left: 0.5,
+                        right: 0.5,
+                        top: 0.75,
+                        bottom: 0.75,
+                        header: 0.3,
+                        footer: 0.3
+                    };
+                    
+                    // Set print area and page setup
+                    const range = XLSX.utils.decode_range(ws['!ref']);
+                    ws['!autofilter'] = { ref: ws['!ref'] };
+                    
+                    // Page setup for portrait printing
+                    ws['!pageSetup'] = {
+                        paperSize: 1, // Letter paper (8.5 x 11)
+                        orientation: 'portrait',
+                        scale: 100,
+                        fitToWidth: 1,
+                        fitToHeight: 0, // Allow multiple pages vertically if needed
+                        fitToPage: true
+                    };
+                    
+                    // Set print titles (repeat header row on each page)
+                    ws['!rows'] = [{ hpt: 20, hpx: 20 }]; // Make header row taller
+                    ws['!printHeader'] = 'A1:G1';
+                    
                     XLSX.utils.book_append_sheet(wb, ws, abbrevs[tk]);
                 });
                 
@@ -1032,7 +1063,38 @@
                     });
                     
                     const ws = XLSX.utils.aoa_to_sheet(data);
+                    
+                    // Set column widths optimized for portrait printing
                     ws['!cols'] = [{ wch: 10 }, { wch: 8 }, { wch: 25 }, { wch: 8 }, { wch: 25 }];
+                    
+                    // Configure print settings for portrait orientation
+                    ws['!margins'] = {
+                        left: 0.5,
+                        right: 0.5,
+                        top: 0.75,
+                        bottom: 0.75,
+                        header: 0.3,
+                        footer: 0.3
+                    };
+                    
+                    // Page setup for portrait printing
+                    ws['!pageSetup'] = {
+                        paperSize: 1, // Letter paper (8.5 x 11)
+                        orientation: 'portrait',
+                        scale: 100,
+                        fitToWidth: 1, // Fit all columns on one page width
+                        fitToHeight: 0, // Allow multiple pages vertically
+                        fitToPage: true,
+                        horizontalCentered: true // Center content horizontally
+                    };
+                    
+                    // Set print titles (repeat header row on each page)
+                    ws['!rows'] = [{ hpt: 20, hpx: 20 }]; // Make header row taller
+                    ws['!printHeader'] = 'A1:E1';
+                    
+                    // Add autofilter to header row
+                    ws['!autofilter'] = { ref: ws['!ref'] };
+                    
                     XLSX.utils.book_append_sheet(wb, ws, `Mat ${mat}`);
                 });
                 
