@@ -308,6 +308,7 @@
         const App = () => {
             const [rosters, setRosters] = useState({ t1: [], t2: [], t3: [] });
             const [names, setNames] = useState({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3' });
+            const [abbrevs, setAbbrevs] = useState({ t1: 'T1', t2: 'T2', t3: 'T3' });
             const [colors, setColors] = useState({ t1: '#3B82F6', t2: '#8B5CF6', t3: '#10B981' });
             const [matches, setMatches] = useState([]);
             const [scratched, setScratched] = useState([]);
@@ -364,12 +365,12 @@
             // Auto-save current tournament
             useEffect(() => {
                 if (currentTournament) {
-                    const state = { rosters, names, colors, matches, scratched, settings };
+                    const state = { rosters, names, abbrevs, colors, matches, scratched, settings };
                     const saved = JSON.parse(localStorage.getItem('wrestlingTournaments') || '{}');
                     saved[currentTournament] = { ...state, lastModified: new Date().toISOString() };
                     localStorage.setItem('wrestlingTournaments', JSON.stringify(saved));
                 }
-            }, [rosters, names, colors, matches, scratched, settings, currentTournament]);
+            }, [rosters, names, abbrevs, colors, matches, scratched, settings, currentTournament]);
             
             // Keyboard shortcuts
             useEffect(() => {
@@ -424,7 +425,7 @@
                     addToast('Please enter a tournament name', 'error');
                     return;
                 }
-                const state = { rosters, names, colors, matches, scratched, settings };
+                const state = { rosters, names, abbrevs, colors, matches, scratched, settings };
                 const saved = JSON.parse(localStorage.getItem('wrestlingTournaments') || '{}');
                 saved[saveName] = { ...state, lastModified: new Date().toISOString() };
                 localStorage.setItem('wrestlingTournaments', JSON.stringify(saved));
@@ -441,6 +442,7 @@
                     const data = saved[name];
                     setRosters(data.rosters);
                     setNames(data.names);
+                    setAbbrevs(data.abbrevs || { t1: 'T1', t2: 'T2', t3: 'T3' }); // Fallback for old saves
                     setColors(data.colors);
                     setMatches(data.matches);
                     setScratched(data.scratched || []);
@@ -462,6 +464,7 @@
             const newTournament = () => {
                 setRosters({ t1: [], t2: [], t3: [] });
                 setNames({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3' });
+                setAbbrevs({ t1: 'T1', t2: 'T2', t3: 'T3' });
                 setColors({ t1: '#3B82F6', t2: '#8B5CF6', t3: '#10B981' });
                 setMatches([]);
                 setScratched([]);
@@ -861,6 +864,11 @@
                 return k ? colors[k] : '#6B7280';
             };
             
+            const getAbbrev = (team) => {
+                const k = Object.keys(names).find(x => names[x] === team);
+                return k ? abbrevs[k] : 'XX';
+            };
+            
             const needsRestHighlight = (wrestler, matchNum, mat) => {
                 const wrestlerMatches = matches
                     .filter(m => m.mat === mat)
@@ -883,8 +891,44 @@
             
             const exportExcel = () => {
                 const wb = XLSX.utils.book_new();
+                
+                // Helper function to convert hex to RGB for Excel
+                const hexToRgb = (hex) => {
+                    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+                    return result ? {
+                        r: parseInt(result[1], 16),
+                        g: parseInt(result[2], 16),
+                        b: parseInt(result[3], 16)
+                    } : { r: 255, g: 255, b: 255 };
+                };
+                
+                // Helper to create RGB string for Excel
+                const rgbToExcel = (rgb) => {
+                    const toHex = (n) => {
+                        const hex = n.toString(16);
+                        return hex.length === 1 ? '0' + hex : hex;
+                    };
+                    return toHex(rgb.r) + toHex(rgb.g) + toHex(rgb.b);
+                };
+                
+                // Helper to lighten color for backgrounds
+                const lightenColor = (hex, percent) => {
+                    const rgb = hexToRgb(hex);
+                    return {
+                        r: Math.min(255, Math.round(rgb.r + (255 - rgb.r) * percent)),
+                        g: Math.min(255, Math.round(rgb.g + (255 - rgb.g) * percent)),
+                        b: Math.min(255, Math.round(rgb.b + (255 - rgb.b) * percent))
+                    };
+                };
+                
+                // Create team roster sheets
                 ['t1', 't2', 't3'].forEach(tk => {
                     if (!rosters[tk].length) return;
+                    
+                    const teamColor = colors[tk];
+                    const teamRgb = hexToRgb(teamColor);
+                    const lightRgb = lightenColor(teamColor, 0.8);
+                    
                     const data = [['', '', '', '', names[tk]]];
                     rosters[tk].sort((a, b) => a.LastName.localeCompare(b.LastName)).forEach(w => {
                         const ms = getMatches(w).sort((a, b) => a.num - b.num);
@@ -895,24 +939,180 @@
                         });
                         data.push(row);
                     });
+                    
                     const ws = XLSX.utils.aoa_to_sheet(data);
+                    
+                    // Apply colors and styling
+                    const range = XLSX.utils.decode_range(ws['!ref']);
+                    
+                    // Style header row (team name)
+                    for (let C = range.s.c; C <= range.e.c; C++) {
+                        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+                        if (!ws[cellAddress]) continue;
+                        ws[cellAddress].s = {
+                            fill: { fgColor: { rgb: rgbToExcel(teamRgb) } },
+                            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 14 },
+                            alignment: { horizontal: "center", vertical: "center" }
+                        };
+                    }
+                    
+                    // Style data rows with lighter background
+                    for (let R = 1; R <= range.e.r; R++) {
+                        for (let C = range.s.c; C <= range.e.c; C++) {
+                            const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                            if (!ws[cellAddress]) ws[cellAddress] = { v: '' };
+                            ws[cellAddress].s = {
+                                fill: { fgColor: { rgb: rgbToExcel(lightRgb) } },
+                                border: {
+                                    top: { style: "thin", color: { rgb: "CCCCCC" } },
+                                    bottom: { style: "thin", color: { rgb: "CCCCCC" } },
+                                    left: { style: "thin", color: { rgb: "CCCCCC" } },
+                                    right: { style: "thin", color: { rgb: "CCCCCC" } }
+                                },
+                                alignment: { vertical: "center" }
+                            };
+                            
+                            // Bold the wrestler name column (column E, index 4)
+                            if (C === 4) {
+                                ws[cellAddress].s.font = { bold: true };
+                            }
+                        }
+                    }
+                    
                     ws['!cols'] = [{ wch: 5 }, { wch: 8 }, { wch: 5 }, { wch: 2 }, { wch: 25 }, { wch: 8 }, { wch: 15 }];
-                    XLSX.utils.book_append_sheet(wb, ws, names[tk].substring(0, 2).toUpperCase());
+                    XLSX.utils.book_append_sheet(wb, ws, abbrevs[tk]);
                 });
                 
+                // Create mat sheets with color coding
                 [1, 2, 3].forEach(mat => {
                     const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.num - b.num);
                     if (!ms.length) return;
-                    const data = [['', `Mat ${mat}`, '', '', '']];
-                    ms.forEach(m => {
-                        const getAbbr = (t) => {
-                            const k = Object.keys(names).find(x => names[x] === t);
-                            return k ? names[k].substring(0, 2).toUpperCase() : 'XX';
-                        };
-                        data.push([m.num, getAbbr(m.w1.Team), m.w1.Name, getAbbr(m.w2.Team), m.w2.Name]);
-                    });
+                    
+                    const data = [['Match #', '', `Mat ${mat}`, '', '']];
+                    
                     const ws = XLSX.utils.aoa_to_sheet(data);
-                    ws['!cols'] = [{ wch: 8 }, { wch: 5 }, { wch: 20 }, { wch: 5 }, { wch: 20 }];
+                    
+                    // Build the data array first
+                    const rowData = [];
+                    ms.forEach(m => {
+                        rowData.push({
+                            num: m.num,
+                            team1: m.w1.Team,
+                            abbrev1: getAbbrev(m.w1.Team),
+                            name1: m.w1.Name,
+                            team2: m.w2.Team,
+                            abbrev2: getAbbrev(m.w2.Team),
+                            name2: m.w2.Name,
+                            color1: colors[Object.keys(names).find(k => names[k] === m.w1.Team)],
+                            color2: colors[Object.keys(names).find(k => names[k] === m.w2.Team)]
+                        });
+                    });
+                    
+                    // Add data rows
+                    rowData.forEach(row => {
+                        XLSX.utils.sheet_add_aoa(ws, [[row.num, row.abbrev1, row.name1, row.abbrev2, row.name2]], { origin: -1 });
+                    });
+                    
+                    // Apply styling
+                    const range = XLSX.utils.decode_range(ws['!ref']);
+                    
+                    // Style header
+                    for (let C = range.s.c; C <= range.e.c; C++) {
+                        const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+                        if (!ws[cellAddress]) continue;
+                        ws[cellAddress].s = {
+                            fill: { fgColor: { rgb: "4A5568" } },
+                            font: { bold: true, color: { rgb: "FFFFFF" }, sz: 14 },
+                            alignment: { horizontal: "center", vertical: "center" }
+                        };
+                    }
+                    
+                    // Style data rows with team colors
+                    for (let R = 1; R <= range.e.r; R++) {
+                        const row = rowData[R - 1];
+                        if (!row) continue;
+                        
+                        // Match number cell
+                        const matchCell = XLSX.utils.encode_cell({ r: R, c: 0 });
+                        if (!ws[matchCell]) ws[matchCell] = { v: '' };
+                        ws[matchCell].s = {
+                            fill: { fgColor: { rgb: "F7FAFC" } },
+                            font: { bold: true },
+                            alignment: { horizontal: "center", vertical: "center" },
+                            border: {
+                                top: { style: "thin", color: { rgb: "E2E8F0" } },
+                                bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+                                left: { style: "thin", color: { rgb: "E2E8F0" } },
+                                right: { style: "thin", color: { rgb: "E2E8F0" } }
+                            }
+                        };
+                        
+                        // Team 1 cells (abbrev and name)
+                        const team1Color = lightenColor(row.color1, 0.7);
+                        const team1BorderColor = hexToRgb(row.color1);
+                        
+                        const abbrev1Cell = XLSX.utils.encode_cell({ r: R, c: 1 });
+                        if (!ws[abbrev1Cell]) ws[abbrev1Cell] = { v: '' };
+                        ws[abbrev1Cell].s = {
+                            fill: { fgColor: { rgb: rgbToExcel(team1Color) } },
+                            font: { bold: true, color: { rgb: rgbToExcel(team1BorderColor) } },
+                            alignment: { horizontal: "center", vertical: "center" },
+                            border: {
+                                top: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } },
+                                bottom: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } },
+                                left: { style: "medium", color: { rgb: rgbToExcel(team1BorderColor) } },
+                                right: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } }
+                            }
+                        };
+                        
+                        const name1Cell = XLSX.utils.encode_cell({ r: R, c: 2 });
+                        if (!ws[name1Cell]) ws[name1Cell] = { v: '' };
+                        ws[name1Cell].s = {
+                            fill: { fgColor: { rgb: rgbToExcel(team1Color) } },
+                            font: { bold: true },
+                            alignment: { vertical: "center" },
+                            border: {
+                                top: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } },
+                                bottom: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } },
+                                left: { style: "thin", color: { rgb: rgbToExcel(team1BorderColor) } },
+                                right: { style: "medium", color: { rgb: rgbToExcel(team1BorderColor) } }
+                            }
+                        };
+                        
+                        // Team 2 cells (abbrev and name)
+                        const team2Color = lightenColor(row.color2, 0.7);
+                        const team2BorderColor = hexToRgb(row.color2);
+                        
+                        const abbrev2Cell = XLSX.utils.encode_cell({ r: R, c: 3 });
+                        if (!ws[abbrev2Cell]) ws[abbrev2Cell] = { v: '' };
+                        ws[abbrev2Cell].s = {
+                            fill: { fgColor: { rgb: rgbToExcel(team2Color) } },
+                            font: { bold: true, color: { rgb: rgbToExcel(team2BorderColor) } },
+                            alignment: { horizontal: "center", vertical: "center" },
+                            border: {
+                                top: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } },
+                                bottom: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } },
+                                left: { style: "medium", color: { rgb: rgbToExcel(team2BorderColor) } },
+                                right: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } }
+                            }
+                        };
+                        
+                        const name2Cell = XLSX.utils.encode_cell({ r: R, c: 4 });
+                        if (!ws[name2Cell]) ws[name2Cell] = { v: '' };
+                        ws[name2Cell].s = {
+                            fill: { fgColor: { rgb: rgbToExcel(team2Color) } },
+                            font: { bold: true },
+                            alignment: { vertical: "center" },
+                            border: {
+                                top: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } },
+                                bottom: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } },
+                                left: { style: "thin", color: { rgb: rgbToExcel(team2BorderColor) } },
+                                right: { style: "medium", color: { rgb: rgbToExcel(team2BorderColor) } }
+                            }
+                        };
+                    }
+                    
+                    ws['!cols'] = [{ wch: 10 }, { wch: 6 }, { wch: 25 }, { wch: 6 }, { wch: 25 }];
                     XLSX.utils.book_append_sheet(wb, ws, `Mat ${mat}`);
                 });
                 
@@ -1108,21 +1308,36 @@
                                     {['t1', 't2', 't3'].map((tk) => (
                                         <div key={tk} className="border-2 border-gray-200 rounded-xl p-6 hover:border-purple-400 transition-all">
                                             <div className="flex items-center justify-between mb-4">
-                                                <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-3 flex-1">
                                                     <input 
                                                         type="text" 
                                                         value={names[tk]} 
                                                         onChange={(e) => setNames(p => ({ ...p, [tk]: e.target.value }))} 
-                                                        className="text-xl font-bold border-b-2 border-purple-300 px-2 py-1 outline-none focus:border-purple-500 transition-colors"
+                                                        className="text-xl font-bold border-b-2 border-purple-300 px-2 py-1 outline-none focus:border-purple-500 transition-colors flex-1"
+                                                        placeholder="Team Name"
                                                     />
-                                                    <input 
-                                                        type="color" 
-                                                        value={colors[tk]} 
-                                                        onChange={(e) => setColors(p => ({ ...p, [tk]: e.target.value }))} 
-                                                        className="w-12 h-12 rounded-lg cursor-pointer border-2 border-gray-300"
-                                                    />
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-xs text-gray-500">Abbrev</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={abbrevs[tk]} 
+                                                            onChange={(e) => setAbbrevs(p => ({ ...p, [tk]: e.target.value.substring(0, 3).toUpperCase() }))} 
+                                                            className="text-sm font-bold border-2 border-gray-300 rounded px-2 py-1 outline-none focus:border-purple-500 transition-colors w-16 text-center"
+                                                            placeholder="T1"
+                                                            maxLength="3"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-1">
+                                                        <label className="text-xs text-gray-500">Color</label>
+                                                        <input 
+                                                            type="color" 
+                                                            value={colors[tk]} 
+                                                            onChange={(e) => setColors(p => ({ ...p, [tk]: e.target.value }))} 
+                                                            className="w-12 h-12 rounded-lg cursor-pointer border-2 border-gray-300"
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <span className="text-3xl font-bold text-gray-400">{rosters[tk].length}</span>
+                                                <span className="text-3xl font-bold text-gray-400 ml-3">{rosters[tk].length}</span>
                                             </div>
                                             <label className="block">
                                                 <div className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-purple-50 to-blue-50 text-purple-700 rounded-xl border-2 border-dashed border-purple-300 hover:border-purple-500 hover:bg-purple-100 cursor-pointer transition-all">
@@ -1254,7 +1469,7 @@
                                                 className={`px-6 py-3 font-semibold rounded-t-lg transition-all ${teamView === tk ? 'border-b-4' : 'hover:bg-gray-100'}`}
                                                 style={teamView === tk ? { borderColor: colors[tk], color: colors[tk] } : {}}
                                             >
-                                                {names[tk]} ({rosters[tk].length})
+                                                <span className="font-bold">{abbrevs[tk]}</span> - {names[tk]} ({rosters[tk].length})
                                             </button>
                                         ))}
                                     </div>
@@ -1292,7 +1507,12 @@
                                                     >
                                                         <div className="flex justify-between mb-2">
                                                             <div className="flex-1" onClick={() => setSelected(w)}>
-                                                                <div className="font-bold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>
+                                                                        {getAbbrev(w.Team)}
+                                                                    </span>
+                                                                    <div className="font-bold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                                </div>
                                                                 <div className="text-sm text-gray-600 flex gap-3 mt-1">
                                                                     <span>⚖️ {w.Weight} lbs</span>
                                                                     <span>🎂 Age {w.Age}</span>
@@ -1323,7 +1543,7 @@
                                                                     style={{ backgroundColor: oc + '15', borderLeft: `3px solid ${oc}` }}
                                                                 >
                                                                     <span className="font-mono font-bold">
-                                                                        Match #{m.num} vs <span style={{ color: oc }}>{opp.Name}</span>
+                                                                        Match #{m.num} vs <span className="px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: oc }}>{getAbbrev(opp.Team)}</span> <span style={{ color: oc }}>{opp.Name}</span>
                                                                     </span>
                                                                     <button 
                                                                         onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} 
@@ -1358,8 +1578,13 @@
                                                                         <div key={m.num} className="bg-white border-2 rounded-xl p-3 match-card">
                                                                             <div className="flex justify-between items-start mb-2">
                                                                                 <div>
-                                                                                    <div className="font-bold text-lg" style={{ color: oc }}>
-                                                                                        {opp.Name}
+                                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                                        <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: oc, color: 'white' }}>
+                                                                                            {getAbbrev(opp.Team)}
+                                                                                        </span>
+                                                                                        <div className="font-bold text-lg" style={{ color: oc }}>
+                                                                                            {opp.Name}
+                                                                                        </div>
                                                                                     </div>
                                                                                     <div className="text-sm text-gray-600 mt-1">
                                                                                         {opp.Team} • {opp.Weight} lbs • Age {opp.Age} • Skill {opp.Skill}
@@ -1401,7 +1626,12 @@
                                                                 >
                                                                     <div className="flex justify-between items-start">
                                                                         <div>
-                                                                            <div className="font-bold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                                            <div className="flex items-center gap-2 mb-1">
+                                                                                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>
+                                                                                    {getAbbrev(w.Team)}
+                                                                                </span>
+                                                                                <div className="font-bold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                                            </div>
                                                                             <div className="text-sm text-gray-600">{w.Team}</div>
                                                                             <div className="text-xs text-gray-500 mt-1">
                                                                                 {w.Weight} lbs • Age {w.Age} • Skill {w.Skill}
@@ -1518,6 +1748,11 @@
                                                                             className={`p-3 rounded-lg font-semibold border-l-4 ${w1NeedsRest ? 'ring-2 ring-orange-400' : ''}`}
                                                                             style={{ backgroundColor: c1 + '25', borderLeftColor: c1, color: c1 }}
                                                                         >
+                                                                            <div className="flex items-center gap-2 mb-1">
+                                                                                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c1, color: 'white' }}>
+                                                                                    {getAbbrev(m.w1.Team)}
+                                                                                </span>
+                                                                            </div>
                                                                             <div className="font-bold">{m.w1.Name}</div>
                                                                             <div className="text-gray-600 font-normal text-xs mt-1">{m.w1.Weight} lbs</div>
                                                                         </div>
@@ -1525,6 +1760,11 @@
                                                                             className={`p-3 rounded-lg font-semibold border-l-4 ${w2NeedsRest ? 'ring-2 ring-orange-400' : ''}`}
                                                                             style={{ backgroundColor: c2 + '25', borderLeftColor: c2, color: c2 }}
                                                                         >
+                                                                            <div className="flex items-center gap-2 mb-1">
+                                                                                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c2, color: 'white' }}>
+                                                                                    {getAbbrev(m.w2.Team)}
+                                                                                </span>
+                                                                            </div>
                                                                             <div className="font-bold">{m.w2.Name}</div>
                                                                             <div className="text-gray-600 font-normal text-xs mt-1">{m.w2.Weight} lbs</div>
                                                                         </div>
@@ -1639,7 +1879,12 @@
                                             style={{ borderLeftColor: c, borderLeftWidth: '4px' }}
                                         >
                                             <div>
-                                                <div className="font-semibold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>
+                                                        {getAbbrev(w.Team)}
+                                                    </span>
+                                                    <div className="font-semibold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                </div>
                                                 <div className="text-sm text-gray-600">
                                                     {w.Team} • {w.Weight} lbs • Age {w.Age} • Skill {w.Skill}
                                                 </div>
