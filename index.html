@@ -1140,6 +1140,42 @@
                 const avgQuality = matches.length > 0 ?
                     (matches.reduce((sum, m) => sum + (7 - m.score), 0) / matches.length).toFixed(1) : 0;
                 
+                // Calculate rest violations
+                let restViolations = 0;
+                const countedViolations = new Set(); // Track unique violations to avoid double counting
+                
+                [1, 2, 3].forEach(mat => {
+                    const matMatches = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
+                    
+                    // Check each wrestler's matches on this mat
+                    const wrestlerMatchesOnMat = {};
+                    matMatches.forEach(m => {
+                        const w1Key = `${m.w1.Name}-${m.w1.Team}`;
+                        const w2Key = `${m.w2.Name}-${m.w2.Team}`;
+                        if (!wrestlerMatchesOnMat[w1Key]) wrestlerMatchesOnMat[w1Key] = [];
+                        if (!wrestlerMatchesOnMat[w2Key]) wrestlerMatchesOnMat[w2Key] = [];
+                        wrestlerMatchesOnMat[w1Key].push(m);
+                        wrestlerMatchesOnMat[w2Key].push(m);
+                    });
+                    
+                    // Check for violations
+                    Object.values(wrestlerMatchesOnMat).forEach(wrestlerMatches => {
+                        if (wrestlerMatches.length < 2) return;
+                        wrestlerMatches.sort((a, b) => a.order - b.order);
+                        for (let i = 0; i < wrestlerMatches.length - 1; i++) {
+                            const gap = wrestlerMatches[i + 1].order - wrestlerMatches[i].order;
+                            if (gap <= settings.minRestBetweenBouts) {
+                                // Create unique key for this violation pair
+                                const violationKey = `${wrestlerMatches[i].num}-${wrestlerMatches[i + 1].num}`;
+                                if (!countedViolations.has(violationKey)) {
+                                    countedViolations.add(violationKey);
+                                    restViolations++;
+                                }
+                            }
+                        }
+                    });
+                });
+                
                 return {
                     totalWrestlers: allWrestlers.length,
                     totalMatches: matches.length,
@@ -1147,9 +1183,9 @@
                     distribution,
                     avgQuality,
                     matCounts: { 1: matches.filter(m => m.mat === 1).length, 2: matches.filter(m => m.mat === 2).length, 3: matches.filter(m => m.mat === 3).length },
-                    restViolations: 0
+                    restViolations
                 };
-            }, [rosters, matches]);
+            }, [rosters, matches, settings.minRestBetweenBouts]);
             
             // Drag handlers for inline drop
             const handleDragStart = (match, mat) => {
