@@ -265,6 +265,11 @@
             to { transform: translateY(0); }
         }
         
+        @keyframes expandGap {
+            from { padding-top: 0; padding-bottom: 0; }
+            to { padding-top: 20px; padding-bottom: 20px; }
+        }
+        
         .animate-slide-in { animation: slideIn 0.3s cubic-bezier(0.2, 0, 0, 1); }
         .animate-fade-in { animation: fadeIn 0.3s cubic-bezier(0.2, 0, 0, 1); }
         .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.2, 0, 0, 1); }
@@ -286,12 +291,43 @@
         }
         
         /* Match Card */
-        .match-card { transition: all 0.2s ease; }
+        .match-card { 
+            transition: all 0.2s ease;
+        }
         .match-card:hover { transform: translateY(-2px); }
-        .match-card.dragging { opacity: 0.5; }
+        .match-card.dragging { 
+            opacity: 0.4; 
+            transform: scale(0.98);
+        }
         
         .wrestler-card { transition: all 0.2s ease; }
         .wrestler-card:hover { transform: translateX(4px); }
+        
+        /* Drag and Drop Indicators */
+        .drop-indicator {
+            height: 4px;
+            background: var(--md-sys-color-primary);
+            border-radius: 2px;
+            margin: 4px 0;
+            transition: all 0.2s cubic-bezier(0.2, 0, 0, 1);
+            opacity: 0;
+        }
+        
+        .drop-indicator.active {
+            opacity: 1;
+            height: 8px;
+            background: linear-gradient(90deg, var(--md-sys-color-primary), var(--md-sys-color-tertiary));
+            box-shadow: 0 0 12px rgba(26, 115, 232, 0.5);
+        }
+        
+        .mat-column {
+            transition: all 0.3s cubic-bezier(0.2, 0, 0, 1);
+        }
+        
+        .mat-column.drag-over {
+            transform: scale(1.02);
+            box-shadow: 0 0 0 3px var(--md-sys-color-primary), var(--md-sys-elevation-4);
+        }
         
         @media print {
             .no-print { display: none !important; }
@@ -371,6 +407,27 @@
             );
         };
         
+        // Stats Badge Component for compact display
+        const StatsBadges = ({ wtPct, ageDiff, expDiff, skillDiff, compact = false }) => {
+            const size = compact ? 'text-xs px-1 py-0.5' : 'text-xs px-1.5 py-0.5';
+            return (
+                <div className="flex items-center gap-0.5">
+                    <span className={`${size} rounded font-semibold ${wtPct <= 5 ? 'bg-green-100 text-green-800' : wtPct <= 8 ? 'bg-yellow-100 text-yellow-800' : 'bg-orange-100 text-orange-800'}`}>
+                        W{wtPct.toFixed(0)}%
+                    </span>
+                    <span className={`${size} rounded font-semibold ${ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        A{ageDiff}
+                    </span>
+                    <span className={`${size} rounded font-semibold ${expDiff <= 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        E{expDiff}
+                    </span>
+                    <span className={`${size} rounded font-semibold ${skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        S{skillDiff}
+                    </span>
+                </div>
+            );
+        };
+        
         const App = () => {
             // State from Premium v2
             const [rosters, setRosters] = useState({ t1: [], t2: [], t3: [] });
@@ -393,6 +450,7 @@
             const [selected, setSelected] = useState(null);
             const [dragged, setDragged] = useState(null);
             const [draggedFromMat, setDraggedFromMat] = useState(null);
+            const [dropTarget, setDropTarget] = useState({ mat: null, index: null });
             const [savedTournaments, setSavedTournaments] = useState([]);
             const [currentTournament, setCurrentTournament] = useState('');
             const [toast, setToast] = useState(null);
@@ -687,16 +745,23 @@
                 setScratched(prev => prev.map(w => w.Team === oldName ? { ...w, Team: newName } : w));
             };
             
-            const calcScore = (w1, w2) => {
+            // Updated calcScore to include expDiff
+            const calcScore = (w1, w2, expanded = false) => {
                 const wtDiff = Math.abs(w1.Weight - w2.Weight);
                 const wtPct = (wtDiff / Math.min(w1.Weight, w2.Weight)) * 100;
                 const ageDiff = Math.abs(w1.Age - w2.Age);
                 const skillDiff = Math.abs(w1.Skill - w2.Skill);
+                const expDiff = Math.abs((w1.Exp || 1) - (w2.Exp || 1));
                 
-                if (wtPct > settings.maxWt || ageDiff > settings.maxAge || skillDiff > settings.maxSkill || w1.Team === w2.Team) return null;
+                // Use expanded limits (2x normal) for wrestlers with no matches
+                const maxWtLimit = expanded ? settings.maxWt * 2 : settings.maxWt;
+                const maxAgeLimit = expanded ? settings.maxAge * 2 : settings.maxAge;
+                const maxSkillLimit = expanded ? settings.maxSkill * 2 : settings.maxSkill;
+                
+                if (wtPct > maxWtLimit || ageDiff > maxAgeLimit || skillDiff > maxSkillLimit || w1.Team === w2.Team) return null;
                 
                 const wtScore = wtPct <= settings.preferredWt ? wtPct * 2 : wtPct * 3;
-                return { score: wtScore + skillDiff * 1.5 + ageDiff * 0.5, wtPct, wtDiff, ageDiff, skillDiff };
+                return { score: wtScore + skillDiff * 1.5 + ageDiff * 0.5, wtPct, wtDiff, ageDiff, skillDiff, expDiff, expanded };
             };
             
             const generate = () => {
@@ -806,21 +871,54 @@
                 showToast('Match added', 'success');
             };
             
-            const moveMat = (num, newMat) => {
-                const newMatches = renumber(matches.map(m => m.num === num ? { ...m, mat: newMat, order: matches.filter(x => x.mat === newMat).length } : m));
+            // Updated moveMat to support inline placement
+            const moveMatchToPosition = (matchNum, targetMat, targetIndex) => {
+                const match = matches.find(m => m.num === matchNum);
+                if (!match) return;
+                
+                // Remove match from current position
+                let newMatches = matches.filter(m => m.num !== matchNum);
+                
+                // Get matches for target mat and insert at position
+                const targetMatMatches = newMatches.filter(m => m.mat === targetMat).sort((a, b) => a.order - b.order);
+                const otherMatches = newMatches.filter(m => m.mat !== targetMat);
+                
+                // Insert the match at the target index
+                const updatedMatch = { ...match, mat: targetMat };
+                targetMatMatches.splice(targetIndex, 0, updatedMatch);
+                
+                // Update order for all matches in target mat
+                targetMatMatches.forEach((m, i) => m.order = i);
+                
+                newMatches = renumber([...otherMatches, ...targetMatMatches]);
                 setMatches(newMatches);
                 addToHistory({ matches: newMatches });
+                showToast(`Match moved to Mat ${targetMat} position ${targetIndex + 1}`, 'success');
             };
             
             const getSuggestions = (w) => {
                 const all = [...rosters.t1, ...rosters.t2, ...rosters.t3];
                 const current = getMatches(w);
                 const matched = new Set(current.map(m => m.w1.Name === w.Name ? m.w2.Name : m.w1.Name));
-                return all.filter(x => x.Name !== w.Name && x.Team !== w.Team && !matched.has(x.Name))
-                    .map(x => ({ w: x, ...calcScore(w, x) }))
+                const hasNoMatches = current.length === 0;
+                
+                // First try with normal criteria
+                let suggestions = all.filter(x => x.Name !== w.Name && x.Team !== w.Team && !matched.has(x.Name))
+                    .map(x => ({ w: x, ...calcScore(w, x, false) }))
                     .filter(x => x.score)
                     .sort((a, b) => a.score - b.score)
                     .slice(0, 10);
+                
+                // If wrestler has no matches and no normal suggestions, try expanded criteria
+                if (hasNoMatches && suggestions.length === 0) {
+                    suggestions = all.filter(x => x.Name !== w.Name && x.Team !== w.Team && !matched.has(x.Name))
+                        .map(x => ({ w: x, ...calcScore(w, x, true) }))
+                        .filter(x => x.score)
+                        .sort((a, b) => a.score - b.score)
+                        .slice(0, 10);
+                }
+                
+                return suggestions;
             };
             
             const getColor = (team) => {
@@ -856,14 +954,14 @@
                 ['t1', 't2', 't3'].forEach(tk => {
                     if (!rosters[tk].length) return;
                     const data = [['Age', 'Weight', 'Skill', '', `${names[tk]} (${abbrevs[tk]})`]];
-                    rosters[tk].sort((a, b) => a.LastName.localeCompare(b.LastName)).forEach(w => {
+                    rosters[tk].sort((a, b) => (a.LastName || a.Name).localeCompare(b.LastName || b.Name)).forEach(w => {
                         const ms = getMatches(w).sort((a, b) => a.num - b.num);
-                        const row = [w.Age, w.Weight, w.Skill, '', `${w.LastName}, ${w.FirstName}`];
+                        const row = [w.Age, w.Weight, w.Skill, '', `${w.LastName || w.Name.split(' ')[1]}, ${w.FirstName || w.Name.split(' ')[0]}`];
                         ms.forEach(m => {
                             const opp = m.w1.Name === w.Name ? m.w2 : m.w1;
                             const oppTeamKey = Object.keys(names).find(k => names[k] === opp.Team);
                             const oppAbbrev = oppTeamKey ? abbrevs[oppTeamKey] : 'XX';
-                            row.push(m.num, `${oppAbbrev}-${opp.FirstName?.charAt(0) || ''} ${opp.LastName || opp.Name}`);
+                            row.push(m.num, `${oppAbbrev}-${opp.FirstName?.charAt(0) || opp.Name.charAt(0)} ${opp.LastName || opp.Name.split(' ')[1] || ''}`);
                         });
                         data.push(row);
                     });
@@ -935,6 +1033,52 @@
                     restViolations: 0
                 };
             }, [rosters, matches]);
+            
+            // Drag handlers for inline drop
+            const handleDragStart = (match, mat) => {
+                setDragged(match);
+                setDraggedFromMat(mat);
+            };
+            
+            const handleDragEnd = () => {
+                setDragged(null);
+                setDraggedFromMat(null);
+                setDropTarget({ mat: null, index: null });
+            };
+            
+            const handleDragOverItem = (e, mat, index) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (dragged) {
+                    setDropTarget({ mat, index });
+                }
+            };
+            
+            const handleDragOverColumn = (e, mat) => {
+                e.preventDefault();
+                if (dragged && dropTarget.mat !== mat) {
+                    const matMatches = matches.filter(m => m.mat === mat);
+                    setDropTarget({ mat, index: matMatches.length });
+                }
+            };
+            
+            const handleDropOnItem = (e, mat, index) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (dragged) {
+                    moveMatchToPosition(dragged.num, mat, index);
+                    handleDragEnd();
+                }
+            };
+            
+            const handleDropOnColumn = (e, mat) => {
+                e.preventDefault();
+                if (dragged) {
+                    const matMatches = matches.filter(m => m.mat === mat);
+                    moveMatchToPosition(dragged.num, mat, matMatches.length);
+                    handleDragEnd();
+                }
+            };
             
             return (
                 <div className="min-h-screen" style={{ backgroundColor: 'var(--md-sys-color-surface-container-low)' }}>
@@ -1012,7 +1156,7 @@
                                 <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>groups</span>Teams {matches.length > 0 && `(${matches.length})`}
                             </button>
                             <button onClick={() => setTab('mats')} disabled={!matches.length} className={`tab-button ${tab === 'mats' ? 'active' : ''} ${!matches.length ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                                <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>sports_martial_arts</span>Mats
+                                <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>sports_kabaddi</span>Mats
                             </button>
                         </div>
                         
@@ -1067,7 +1211,7 @@
                                                             <div key={idx} className="wrestler-card p-3 rounded-lg flex justify-between items-center" style={{ backgroundColor: 'var(--md-sys-color-surface-container)', borderLeft: `3px solid ${colors[tk]}` }}>
                                                                 <div>
                                                                     <div className="font-semibold" style={{ color: colors[tk] }}>{w.Name}</div>
-                                                                    <div className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb • Age {w.Age} • Skill {w.Skill}</div>
+                                                                    <div className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb • Age {w.Age} • Exp {w.Exp} • Skill {w.Skill}</div>
                                                                 </div>
                                                                 <div className="flex gap-1">
                                                                     <button onClick={() => scratchWrestler(w)} className="md-text-button p-1" title="Scratch">
@@ -1172,7 +1316,7 @@
                                                                 <div className="flex items-center gap-2">
                                                                     <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
                                                                     <span className="font-bold" style={{ color: c }}>{w.Name}</span>
-                                                                    <span className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb • {w.Age}y • S{w.Skill}</span>
+                                                                    <span className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb • {w.Age}y • E{w.Exp} • S{w.Skill}</span>
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-2">
@@ -1187,14 +1331,14 @@
                                                                     const oc = getColor(opp.Team);
                                                                     return (
                                                                         <div key={m.num} className="text-xs p-1.5 rounded flex items-center justify-between" style={{ backgroundColor: oc + '15', borderLeft: `2px solid ${oc}` }}>
-                                                                            <div className="flex items-center gap-1">
+                                                                            <div className="flex items-center gap-1 flex-1 min-w-0">
                                                                                 <span className="font-mono font-semibold">#{m.num}</span>
                                                                                 <span className="px-1 py-0.5 rounded text-white" style={{ backgroundColor: oc }}>{getAbbrev(opp.Team)}</span>
-                                                                                <span style={{ color: oc }}>{opp.Name}</span>
+                                                                                <span className="truncate" style={{ color: oc }}>{opp.Name}</span>
                                                                             </div>
-                                                                            <div className="flex items-center gap-1">
-                                                                                <span className={`px-1 py-0.5 rounded ${m.wtPct <= 5 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{m.wtPct.toFixed(0)}%</span>
-                                                                                <button onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} className="text-red-600 hover:bg-red-100 rounded px-1">✕</button>
+                                                                            <div className="flex items-center gap-1 ml-1">
+                                                                                <StatsBadges wtPct={m.wtPct} ageDiff={m.ageDiff} expDiff={m.expDiff || 0} skillDiff={m.skillDiff} compact={true} />
+                                                                                <button onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} className="text-red-600 hover:bg-red-100 rounded px-1 ml-1">✕</button>
                                                                             </div>
                                                                         </div>
                                                                     );
@@ -1217,24 +1361,31 @@
                                                         <p className="text-sm" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>Click to add match</p>
                                                     </div>
                                                     
+                                                    {/* Show warning if expanded criteria are being used */}
+                                                    {getMatches(selected).length === 0 && getSuggestions(selected).some(s => s.expanded) && (
+                                                        <div className="p-3 rounded-lg flex items-center gap-2" style={{ backgroundColor: 'var(--md-sys-color-warning-container)', border: '1px solid var(--md-sys-color-warning)' }}>
+                                                            <span className="material-symbols-rounded" style={{ color: '#b45309' }}>warning</span>
+                                                            <span className="text-sm font-medium" style={{ color: '#b45309' }}>
+                                                                No matches within normal criteria. Showing expanded options (2x limits) - use with caution.
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    
                                                     <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar">
-                                                        {getSuggestions(selected).map(({ w, wtPct, skillDiff, ageDiff }) => {
+                                                        {getSuggestions(selected).map(({ w, wtPct, ageDiff, expDiff, skillDiff, expanded }) => {
                                                             const c = getColor(w.Team);
                                                             return (
-                                                                <div key={w.Name} onClick={() => addMatch(selected, w)} className="match-card md-card-outlined p-4 cursor-pointer hover:shadow-lg">
+                                                                <div key={w.Name} onClick={() => addMatch(selected, w)} className={`match-card md-card-outlined p-4 cursor-pointer hover:shadow-lg ${expanded ? 'ring-2 ring-orange-400' : ''}`} style={expanded ? { backgroundColor: 'var(--md-sys-color-warning-container)' } : {}}>
                                                                     <div className="flex justify-between items-start">
                                                                         <div>
                                                                             <div className="flex items-center gap-2 mb-1">
+                                                                                {expanded && <span className="material-symbols-rounded text-orange-500" style={{ fontSize: '18px' }}>warning</span>}
                                                                                 <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
                                                                                 <span className="font-bold text-lg" style={{ color: c }}>{w.Name}</span>
                                                                             </div>
-                                                                            <div className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight} lbs • Age {w.Age} • Skill {w.Skill}</div>
+                                                                            <div className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight} lbs • Age {w.Age} • Exp {w.Exp} • Skill {w.Skill}</div>
                                                                         </div>
-                                                                        <div className="flex gap-2">
-                                                                            <span className={`text-xs px-2 py-1 rounded font-semibold ${wtPct <= 5 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>Wt: {wtPct.toFixed(1)}%</span>
-                                                                            <span className={`text-xs px-2 py-1 rounded font-semibold ${skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>S: {skillDiff}</span>
-                                                                            <span className={`text-xs px-2 py-1 rounded font-semibold ${ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>A: {ageDiff}</span>
-                                                                        </div>
+                                                                        <StatsBadges wtPct={wtPct} ageDiff={ageDiff} expDiff={expDiff || 0} skillDiff={skillDiff} />
                                                                     </div>
                                                                 </div>
                                                             );
@@ -1258,69 +1409,93 @@
                                 <div>
                                     <div className="mb-4 p-3 rounded-lg flex items-center gap-2" style={{ backgroundColor: 'var(--md-sys-color-warning-container)' }}>
                                         <span className="material-symbols-rounded" style={{ color: '#b45309' }}>warning</span>
-                                        <span className="text-sm" style={{ color: '#b45309' }}>Orange highlight = wrestlers within {settings.minRestBetweenBouts} matches of each other</span>
+                                        <span className="text-sm" style={{ color: '#b45309' }}>Orange highlight = wrestlers within {settings.minRestBetweenBouts} matches of each other. Drag matches to reorder or move between mats.</span>
                                     </div>
                                     
                                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                                         {[1, 2, 3].map(mat => {
                                             const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
+                                            const isColumnDragOver = dragged && dropTarget.mat === mat;
+                                            
                                             return (
-                                                <div key={mat} className="md-card overflow-hidden" onDragOver={(e) => e.preventDefault()} onDrop={(e) => {
-                                                    e.preventDefault();
-                                                    if (dragged && draggedFromMat !== mat) {
-                                                        moveMat(dragged.num, mat);
-                                                        setDragged(null);
-                                                        setDraggedFromMat(null);
-                                                    }
-                                                }}>
+                                                <div 
+                                                    key={mat} 
+                                                    className={`mat-column md-card overflow-hidden ${isColumnDragOver ? 'drag-over' : ''}`}
+                                                    onDragOver={(e) => handleDragOverColumn(e, mat)}
+                                                    onDrop={(e) => handleDropOnColumn(e, mat)}
+                                                >
                                                     <div className="p-4 flex justify-between items-center" style={{ backgroundColor: 'var(--md-sys-color-primary)', color: 'var(--md-sys-color-on-primary)' }}>
                                                         <h3 className="font-bold flex items-center gap-2">
-                                                            <span className="material-symbols-rounded filled">sports_martial_arts</span>
+                                                            <span className="material-symbols-rounded filled" style={{ fontSize: '20px' }}>sports_kabaddi</span>
                                                             Mat {mat}
                                                         </h3>
                                                         <span className="md-chip" style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: 'white' }}>{ms.length} matches</span>
                                                     </div>
                                                     
-                                                    <div className="p-3 space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar" style={{ backgroundColor: 'var(--md-sys-color-surface-container)' }}>
+                                                    <div className="p-3 max-h-[600px] overflow-y-auto custom-scrollbar" style={{ backgroundColor: 'var(--md-sys-color-surface-container)' }}>
                                                         {ms.map((m, index) => {
                                                             const c1 = getColor(m.w1.Team);
                                                             const c2 = getColor(m.w2.Team);
                                                             const w1NeedsRest = needsRestHighlight(m.w1, m.num, mat);
                                                             const w2NeedsRest = needsRestHighlight(m.w2, m.num, mat);
                                                             const anyNeedsRest = w1NeedsRest || w2NeedsRest;
+                                                            const isDropHere = dropTarget.mat === mat && dropTarget.index === index;
+                                                            const isDragging = dragged?.num === m.num;
                                                             
                                                             return (
-                                                                <div key={m.num} draggable onDragStart={() => { setDragged(m); setDraggedFromMat(mat); }} className={`match-card md-card-elevated p-3 cursor-move ${anyNeedsRest ? 'ring-2 ring-orange-400' : ''}`}>
-                                                                    <div className="flex justify-between items-center mb-2">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="material-symbols-rounded" style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: '16px' }}>drag_indicator</span>
-                                                                            <span className="md-chip font-bold">#{m.num}</span>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className={`text-xs px-2 py-0.5 rounded ${m.wtPct <= 5 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{m.wtPct.toFixed(0)}%</span>
-                                                                            {anyNeedsRest && <span className="material-symbols-rounded text-orange-500" style={{ fontSize: '18px' }}>warning</span>}
-                                                                        </div>
-                                                                    </div>
+                                                                <React.Fragment key={m.num}>
+                                                                    {/* Drop indicator before this item */}
+                                                                    <div 
+                                                                        className={`drop-indicator ${isDropHere ? 'active' : ''}`}
+                                                                        onDragOver={(e) => handleDragOverItem(e, mat, index)}
+                                                                        onDrop={(e) => handleDropOnItem(e, mat, index)}
+                                                                    />
                                                                     
-                                                                    <div className="flex gap-2">
-                                                                        <div className={`flex-1 p-2 rounded ${w1NeedsRest ? 'ring-2 ring-orange-400' : ''}`} style={{ backgroundColor: c1 + '15', borderLeft: `3px solid ${c1}` }}>
-                                                                            <div className="flex items-center gap-1">
-                                                                                <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: c1, color: 'white' }}>{getAbbrev(m.w1.Team)}</span>
-                                                                                <span className="font-semibold text-sm truncate" style={{ color: c1 }}>{m.w1.LastName || m.w1.Name.split(' ')[1] || m.w1.Name}</span>
+                                                                    <div 
+                                                                        draggable
+                                                                        onDragStart={() => handleDragStart(m, mat)}
+                                                                        onDragEnd={handleDragEnd}
+                                                                        className={`match-card md-card-elevated p-3 cursor-move mb-1 ${anyNeedsRest ? 'ring-2 ring-orange-400' : ''} ${isDragging ? 'dragging' : ''}`}
+                                                                    >
+                                                                        <div className="flex justify-between items-center mb-2">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="material-symbols-rounded" style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: '16px' }}>drag_indicator</span>
+                                                                                <span className="md-chip font-bold">#{m.num}</span>
                                                                             </div>
-                                                                            <div className="text-xs mt-1" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{m.w1.Weight}lb</div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <StatsBadges wtPct={m.wtPct} ageDiff={m.ageDiff} expDiff={m.expDiff || 0} skillDiff={m.skillDiff} compact={true} />
+                                                                                {anyNeedsRest && <span className="material-symbols-rounded text-orange-500 ml-1" style={{ fontSize: '16px' }}>warning</span>}
+                                                                            </div>
                                                                         </div>
-                                                                        <div className={`flex-1 p-2 rounded ${w2NeedsRest ? 'ring-2 ring-orange-400' : ''}`} style={{ backgroundColor: c2 + '15', borderLeft: `3px solid ${c2}` }}>
-                                                                            <div className="flex items-center gap-1">
-                                                                                <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: c2, color: 'white' }}>{getAbbrev(m.w2.Team)}</span>
-                                                                                <span className="font-semibold text-sm truncate" style={{ color: c2 }}>{m.w2.LastName || m.w2.Name.split(' ')[1] || m.w2.Name}</span>
+                                                                        
+                                                                        <div className="flex gap-2">
+                                                                            <div className={`flex-1 p-2 rounded ${w1NeedsRest ? 'ring-2 ring-orange-400' : ''}`} style={{ backgroundColor: c1 + '15', borderLeft: `3px solid ${c1}` }}>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: c1, color: 'white' }}>{getAbbrev(m.w1.Team)}</span>
+                                                                                    <span className="font-semibold text-sm truncate" style={{ color: c1 }}>{m.w1.LastName || m.w1.Name.split(' ')[1] || m.w1.Name}</span>
+                                                                                </div>
+                                                                                <div className="text-xs mt-1" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{m.w1.Weight}lb</div>
                                                                             </div>
-                                                                            <div className="text-xs mt-1" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{m.w2.Weight}lb</div>
+                                                                            <div className={`flex-1 p-2 rounded ${w2NeedsRest ? 'ring-2 ring-orange-400' : ''}`} style={{ backgroundColor: c2 + '15', borderLeft: `3px solid ${c2}` }}>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: c2, color: 'white' }}>{getAbbrev(m.w2.Team)}</span>
+                                                                                    <span className="font-semibold text-sm truncate" style={{ color: c2 }}>{m.w2.LastName || m.w2.Name.split(' ')[1] || m.w2.Name}</span>
+                                                                                </div>
+                                                                                <div className="text-xs mt-1" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{m.w2.Weight}lb</div>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
-                                                                </div>
+                                                                </React.Fragment>
                                                             );
                                                         })}
+                                                        
+                                                        {/* Drop indicator at the end */}
+                                                        <div 
+                                                            className={`drop-indicator ${dropTarget.mat === mat && dropTarget.index === ms.length ? 'active' : ''}`}
+                                                            onDragOver={(e) => handleDragOverItem(e, mat, ms.length)}
+                                                            onDrop={(e) => handleDropOnItem(e, mat, ms.length)}
+                                                        />
+                                                        
                                                         {ms.length === 0 && (
                                                             <div className="text-center py-8" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
                                                                 <span className="material-symbols-rounded" style={{ fontSize: '48px' }}>inbox</span>
@@ -1474,7 +1649,7 @@
                                                     <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
                                                     <div className="font-semibold text-lg" style={{ color: c }}>{w.Name}</div>
                                                 </div>
-                                                <div className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight} lbs • Age {w.Age} • Skill {w.Skill}</div>
+                                                <div className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight} lbs • Age {w.Age} • Exp {w.Exp} • Skill {w.Skill}</div>
                                             </div>
                                             <button onClick={() => restoreWrestler(w)} className="md-filled-button" style={{ backgroundColor: 'var(--md-sys-color-tertiary)' }}>
                                                 <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>restore</span>Restore
