@@ -428,6 +428,56 @@
             );
         };
         
+        // Stats Comparison Component - shows actual stats of both wrestlers with differences
+        const StatsCompare = ({ w1, w2, compact = false }) => {
+            const wtPct = ((Math.abs(w1.Weight - w2.Weight) / Math.min(w1.Weight, w2.Weight)) * 100);
+            const ageDiff = Math.abs(w1.Age - w2.Age);
+            const expDiff = Math.abs((w1.Exp || 1) - (w2.Exp || 1));
+            const skillDiff = Math.abs(w1.Skill - w2.Skill);
+            
+            if (compact) {
+                // Compact version for left column matchups - single line
+                return (
+                    <div className="flex items-center gap-1 text-xs flex-wrap">
+                        <span className={`px-1 py-0.5 rounded font-semibold ${wtPct <= 5 ? 'bg-green-100 text-green-800' : wtPct <= 8 ? 'bg-yellow-100 text-yellow-800' : 'bg-orange-100 text-orange-800'}`}>
+                            {w1.Weight}v{w2.Weight} ({wtPct.toFixed(0)}%)
+                        </span>
+                        <span className={`px-1 py-0.5 rounded font-semibold ${ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                            A:{w1.Age}v{w2.Age}
+                        </span>
+                        <span className={`px-1 py-0.5 rounded font-semibold ${expDiff <= 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                            E:{w1.Exp || 1}v{w2.Exp || 1}
+                        </span>
+                        <span className={`px-1 py-0.5 rounded font-semibold ${skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                            S:{w1.Skill}v{w2.Skill}
+                        </span>
+                    </div>
+                );
+            }
+            
+            // Full version for suggestions panel
+            return (
+                <div className="grid grid-cols-4 gap-1 text-xs">
+                    <div className={`px-2 py-1 rounded text-center ${wtPct <= 5 ? 'bg-green-100 text-green-800' : wtPct <= 8 ? 'bg-yellow-100 text-yellow-800' : 'bg-orange-100 text-orange-800'}`}>
+                        <div className="font-bold">{w1.Weight} vs {w2.Weight}</div>
+                        <div className="opacity-75">Wt: {wtPct.toFixed(1)}%</div>
+                    </div>
+                    <div className={`px-2 py-1 rounded text-center ${ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        <div className="font-bold">{w1.Age} vs {w2.Age}</div>
+                        <div className="opacity-75">Age: ±{ageDiff}</div>
+                    </div>
+                    <div className={`px-2 py-1 rounded text-center ${expDiff <= 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        <div className="font-bold">{w1.Exp || 1} vs {w2.Exp || 1}</div>
+                        <div className="opacity-75">Exp: ±{expDiff}</div>
+                    </div>
+                    <div className={`px-2 py-1 rounded text-center ${skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                        <div className="font-bold">{w1.Skill} vs {w2.Skill}</div>
+                        <div className="opacity-75">Skill: ±{skillDiff}</div>
+                    </div>
+                </div>
+            );
+        };
+        
         const App = () => {
             // State from Premium v2
             const [rosters, setRosters] = useState({ t1: [], t2: [], t3: [] });
@@ -1330,16 +1380,16 @@
                                                                     const opp = m.w1.Name === w.Name ? m.w2 : m.w1;
                                                                     const oc = getColor(opp.Team);
                                                                     return (
-                                                                        <div key={m.num} className="text-xs p-1.5 rounded flex items-center justify-between" style={{ backgroundColor: oc + '15', borderLeft: `2px solid ${oc}` }}>
-                                                                            <div className="flex items-center gap-1 flex-1 min-w-0">
-                                                                                <span className="font-mono font-semibold">#{m.num}</span>
-                                                                                <span className="px-1 py-0.5 rounded text-white" style={{ backgroundColor: oc }}>{getAbbrev(opp.Team)}</span>
-                                                                                <span className="truncate" style={{ color: oc }}>{opp.Name}</span>
+                                                                        <div key={m.num} className="text-xs p-1.5 rounded" style={{ backgroundColor: oc + '15', borderLeft: `2px solid ${oc}` }}>
+                                                                            <div className="flex items-center justify-between mb-1">
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <span className="font-mono font-semibold">#{m.num}</span>
+                                                                                    <span className="px-1 py-0.5 rounded text-white" style={{ backgroundColor: oc }}>{getAbbrev(opp.Team)}</span>
+                                                                                    <span className="font-semibold truncate" style={{ color: oc }}>{opp.Name}</span>
+                                                                                </div>
+                                                                                <button onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} className="text-red-600 hover:bg-red-100 rounded px-1">✕</button>
                                                                             </div>
-                                                                            <div className="flex items-center gap-1 ml-1">
-                                                                                <StatsBadges wtPct={m.wtPct} ageDiff={m.ageDiff} expDiff={m.expDiff || 0} skillDiff={m.skillDiff} compact={true} />
-                                                                                <button onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} className="text-red-600 hover:bg-red-100 rounded px-1 ml-1">✕</button>
-                                                                            </div>
+                                                                            <StatsCompare w1={w} w2={opp} compact={true} />
                                                                         </div>
                                                                     );
                                                                 })}
@@ -1376,17 +1426,12 @@
                                                             const c = getColor(w.Team);
                                                             return (
                                                                 <div key={w.Name} onClick={() => addMatch(selected, w)} className={`match-card md-card-outlined p-4 cursor-pointer hover:shadow-lg ${expanded ? 'ring-2 ring-orange-400' : ''}`} style={expanded ? { backgroundColor: 'var(--md-sys-color-warning-container)' } : {}}>
-                                                                    <div className="flex justify-between items-start">
-                                                                        <div>
-                                                                            <div className="flex items-center gap-2 mb-1">
-                                                                                {expanded && <span className="material-symbols-rounded text-orange-500" style={{ fontSize: '18px' }}>warning</span>}
-                                                                                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
-                                                                                <span className="font-bold text-lg" style={{ color: c }}>{w.Name}</span>
-                                                                            </div>
-                                                                            <div className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight} lbs • Age {w.Age} • Exp {w.Exp} • Skill {w.Skill}</div>
-                                                                        </div>
-                                                                        <StatsBadges wtPct={wtPct} ageDiff={ageDiff} expDiff={expDiff || 0} skillDiff={skillDiff} />
+                                                                    <div className="flex items-center gap-2 mb-2">
+                                                                        {expanded && <span className="material-symbols-rounded text-orange-500" style={{ fontSize: '18px' }}>warning</span>}
+                                                                        <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
+                                                                        <span className="font-bold text-lg" style={{ color: c }}>{w.Name}</span>
                                                                     </div>
+                                                                    <StatsCompare w1={selected} w2={w} compact={false} />
                                                                 </div>
                                                             );
                                                         })}
@@ -1407,105 +1452,110 @@
                             
                             {tab === 'mats' && matches.length > 0 && (
                                 <div>
-                                    <div className="mb-4 p-3 rounded-lg flex items-center gap-2" style={{ backgroundColor: 'var(--md-sys-color-warning-container)' }}>
-                                        <span className="material-symbols-rounded" style={{ color: '#b45309' }}>warning</span>
-                                        <span className="text-sm" style={{ color: '#b45309' }}>Orange highlight = wrestlers within {settings.minRestBetweenBouts} matches of each other. Drag matches to reorder or move between mats.</span>
+                                    <div className="mb-3 p-2 rounded-lg flex items-center gap-2" style={{ backgroundColor: 'var(--md-sys-color-warning-container)' }}>
+                                        <span className="material-symbols-rounded" style={{ color: '#b45309', fontSize: '18px' }}>warning</span>
+                                        <span className="text-xs" style={{ color: '#b45309' }}>Orange = rest violation. Drag to reorder or move between mats.</span>
                                     </div>
                                     
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                                        {[1, 2, 3].map(mat => {
-                                            const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
-                                            const isColumnDragOver = dragged && dropTarget.mat === mat;
-                                            
-                                            return (
-                                                <div 
-                                                    key={mat} 
-                                                    className={`mat-column md-card overflow-hidden ${isColumnDragOver ? 'drag-over' : ''}`}
-                                                    onDragOver={(e) => handleDragOverColumn(e, mat)}
-                                                    onDrop={(e) => handleDropOnColumn(e, mat)}
-                                                >
-                                                    <div className="p-4 flex justify-between items-center" style={{ backgroundColor: 'var(--md-sys-color-primary)', color: 'var(--md-sys-color-on-primary)' }}>
-                                                        <h3 className="font-bold flex items-center gap-2">
-                                                            <span className="material-symbols-rounded filled" style={{ fontSize: '20px' }}>sports_kabaddi</span>
-                                                            Mat {mat}
-                                                        </h3>
-                                                        <span className="md-chip" style={{ backgroundColor: 'rgba(255,255,255,0.2)', color: 'white' }}>{ms.length} matches</span>
-                                                    </div>
-                                                    
-                                                    <div className="p-3 max-h-[600px] overflow-y-auto custom-scrollbar" style={{ backgroundColor: 'var(--md-sys-color-surface-container)' }}>
-                                                        {ms.map((m, index) => {
-                                                            const c1 = getColor(m.w1.Team);
-                                                            const c2 = getColor(m.w2.Team);
-                                                            const w1NeedsRest = needsRestHighlight(m.w1, m.num, mat);
-                                                            const w2NeedsRest = needsRestHighlight(m.w2, m.num, mat);
-                                                            const anyNeedsRest = w1NeedsRest || w2NeedsRest;
-                                                            const isDropHere = dropTarget.mat === mat && dropTarget.index === index;
-                                                            const isDragging = dragged?.num === m.num;
-                                                            
-                                                            return (
-                                                                <React.Fragment key={m.num}>
-                                                                    {/* Drop indicator before this item */}
-                                                                    <div 
-                                                                        className={`drop-indicator ${isDropHere ? 'active' : ''}`}
-                                                                        onDragOver={(e) => handleDragOverItem(e, mat, index)}
-                                                                        onDrop={(e) => handleDropOnItem(e, mat, index)}
-                                                                    />
-                                                                    
-                                                                    <div 
-                                                                        draggable
-                                                                        onDragStart={() => handleDragStart(m, mat)}
-                                                                        onDragEnd={handleDragEnd}
-                                                                        className={`match-card md-card-elevated p-3 cursor-move mb-1 ${anyNeedsRest ? 'ring-2 ring-orange-400' : ''} ${isDragging ? 'dragging' : ''}`}
-                                                                    >
-                                                                        <div className="flex justify-between items-center mb-2">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <span className="material-symbols-rounded" style={{ color: 'var(--md-sys-color-on-surface-variant)', fontSize: '16px' }}>drag_indicator</span>
-                                                                                <span className="md-chip font-bold">#{m.num}</span>
-                                                                            </div>
-                                                                            <div className="flex items-center gap-1">
-                                                                                <StatsBadges wtPct={m.wtPct} ageDiff={m.ageDiff} expDiff={m.expDiff || 0} skillDiff={m.skillDiff} compact={true} />
-                                                                                {anyNeedsRest && <span className="material-symbols-rounded text-orange-500 ml-1" style={{ fontSize: '16px' }}>warning</span>}
-                                                                            </div>
-                                                                        </div>
+                                    {/* Unified scroll container for all mats */}
+                                    <div className="overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 280px)' }}>
+                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                                            {[1, 2, 3].map(mat => {
+                                                const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
+                                                const isColumnDragOver = dragged && dropTarget.mat === mat;
+                                                
+                                                return (
+                                                    <div 
+                                                        key={mat} 
+                                                        className={`mat-column md-card overflow-hidden ${isColumnDragOver ? 'drag-over' : ''}`}
+                                                        onDragOver={(e) => handleDragOverColumn(e, mat)}
+                                                        onDrop={(e) => handleDropOnColumn(e, mat)}
+                                                    >
+                                                        <div className="px-3 py-2 flex justify-between items-center sticky top-0 z-10" style={{ backgroundColor: 'var(--md-sys-color-primary)', color: 'var(--md-sys-color-on-primary)' }}>
+                                                            <h3 className="font-bold flex items-center gap-1 text-sm">
+                                                                <span className="material-symbols-rounded filled" style={{ fontSize: '16px' }}>sports_kabaddi</span>
+                                                                Mat {mat}
+                                                            </h3>
+                                                            <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>{ms.length}</span>
+                                                        </div>
+                                                        
+                                                        <div className="p-2 space-y-1" style={{ backgroundColor: 'var(--md-sys-color-surface-container)' }}>
+                                                            {ms.map((m, index) => {
+                                                                const c1 = getColor(m.w1.Team);
+                                                                const c2 = getColor(m.w2.Team);
+                                                                const w1NeedsRest = needsRestHighlight(m.w1, m.num, mat);
+                                                                const w2NeedsRest = needsRestHighlight(m.w2, m.num, mat);
+                                                                const anyNeedsRest = w1NeedsRest || w2NeedsRest;
+                                                                const isDropHere = dropTarget.mat === mat && dropTarget.index === index;
+                                                                const isDragging = dragged?.num === m.num;
+                                                                
+                                                                return (
+                                                                    <React.Fragment key={m.num}>
+                                                                        {/* Drop indicator */}
+                                                                        <div 
+                                                                            className={`drop-indicator ${isDropHere ? 'active' : ''}`}
+                                                                            onDragOver={(e) => handleDragOverItem(e, mat, index)}
+                                                                            onDrop={(e) => handleDropOnItem(e, mat, index)}
+                                                                        />
                                                                         
-                                                                        <div className="flex gap-2">
-                                                                            <div className={`flex-1 p-2 rounded ${w1NeedsRest ? 'ring-2 ring-orange-400' : ''}`} style={{ backgroundColor: c1 + '15', borderLeft: `3px solid ${c1}` }}>
-                                                                                <div className="flex items-center gap-1">
-                                                                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: c1, color: 'white' }}>{getAbbrev(m.w1.Team)}</span>
-                                                                                    <span className="font-semibold text-sm truncate" style={{ color: c1 }}>{m.w1.LastName || m.w1.Name.split(' ')[1] || m.w1.Name}</span>
+                                                                        {/* Compact match card */}
+                                                                        <div 
+                                                                            draggable
+                                                                            onDragStart={() => handleDragStart(m, mat)}
+                                                                            onDragEnd={handleDragEnd}
+                                                                            className={`match-card rounded p-1.5 cursor-move ${anyNeedsRest ? 'ring-1 ring-orange-400' : ''} ${isDragging ? 'dragging' : ''}`}
+                                                                            style={{ backgroundColor: 'var(--md-sys-color-surface)', boxShadow: 'var(--md-sys-elevation-1)' }}
+                                                                        >
+                                                                            {/* Single row: # | W1 | vs | W2 | stats */}
+                                                                            <div className="flex items-center gap-1 text-xs">
+                                                                                <span className="material-symbols-rounded" style={{ color: 'var(--md-sys-color-outline)', fontSize: '12px' }}>drag_indicator</span>
+                                                                                <span className="font-mono font-bold text-gray-600 w-7">#{m.num % 100}</span>
+                                                                                
+                                                                                {/* Wrestler 1 */}
+                                                                                <div className={`flex items-center gap-0.5 flex-1 min-w-0 px-1 py-0.5 rounded ${w1NeedsRest ? 'ring-1 ring-orange-400' : ''}`} style={{ backgroundColor: c1 + '15' }}>
+                                                                                    <span className="font-bold px-1 rounded text-white" style={{ backgroundColor: c1, fontSize: '9px' }}>{getAbbrev(m.w1.Team)}</span>
+                                                                                    <span className="truncate font-medium" style={{ color: c1 }}>{m.w1.LastName || m.w1.Name.split(' ')[1] || m.w1.Name}</span>
+                                                                                    <span className="text-gray-500">{m.w1.Weight}</span>
                                                                                 </div>
-                                                                                <div className="text-xs mt-1" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{m.w1.Weight}lb</div>
-                                                                            </div>
-                                                                            <div className={`flex-1 p-2 rounded ${w2NeedsRest ? 'ring-2 ring-orange-400' : ''}`} style={{ backgroundColor: c2 + '15', borderLeft: `3px solid ${c2}` }}>
-                                                                                <div className="flex items-center gap-1">
-                                                                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: c2, color: 'white' }}>{getAbbrev(m.w2.Team)}</span>
-                                                                                    <span className="font-semibold text-sm truncate" style={{ color: c2 }}>{m.w2.LastName || m.w2.Name.split(' ')[1] || m.w2.Name}</span>
+                                                                                
+                                                                                <span className="text-gray-400 font-bold">vs</span>
+                                                                                
+                                                                                {/* Wrestler 2 */}
+                                                                                <div className={`flex items-center gap-0.5 flex-1 min-w-0 px-1 py-0.5 rounded ${w2NeedsRest ? 'ring-1 ring-orange-400' : ''}`} style={{ backgroundColor: c2 + '15' }}>
+                                                                                    <span className="font-bold px-1 rounded text-white" style={{ backgroundColor: c2, fontSize: '9px' }}>{getAbbrev(m.w2.Team)}</span>
+                                                                                    <span className="truncate font-medium" style={{ color: c2 }}>{m.w2.LastName || m.w2.Name.split(' ')[1] || m.w2.Name}</span>
+                                                                                    <span className="text-gray-500">{m.w2.Weight}</span>
                                                                                 </div>
-                                                                                <div className="text-xs mt-1" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{m.w2.Weight}lb</div>
+                                                                                
+                                                                                {/* Compact stats */}
+                                                                                <span className={`px-1 py-0.5 rounded font-semibold ${m.wtPct <= 5 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`} style={{ fontSize: '9px' }}>
+                                                                                    {m.wtPct.toFixed(0)}%
+                                                                                </span>
+                                                                                {anyNeedsRest && <span className="material-symbols-rounded text-orange-500" style={{ fontSize: '12px' }}>warning</span>}
                                                                             </div>
                                                                         </div>
-                                                                    </div>
-                                                                </React.Fragment>
-                                                            );
-                                                        })}
-                                                        
-                                                        {/* Drop indicator at the end */}
-                                                        <div 
-                                                            className={`drop-indicator ${dropTarget.mat === mat && dropTarget.index === ms.length ? 'active' : ''}`}
-                                                            onDragOver={(e) => handleDragOverItem(e, mat, ms.length)}
-                                                            onDrop={(e) => handleDropOnItem(e, mat, ms.length)}
-                                                        />
-                                                        
-                                                        {ms.length === 0 && (
-                                                            <div className="text-center py-8" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
-                                                                <span className="material-symbols-rounded" style={{ fontSize: '48px' }}>inbox</span>
-                                                                <p className="mt-2">Drag matches here</p>
-                                                            </div>
-                                                        )}
+                                                                    </React.Fragment>
+                                                                );
+                                                            })}
+                                                            
+                                                            {/* Drop indicator at end */}
+                                                            <div 
+                                                                className={`drop-indicator ${dropTarget.mat === mat && dropTarget.index === ms.length ? 'active' : ''}`}
+                                                                onDragOver={(e) => handleDragOverItem(e, mat, ms.length)}
+                                                                onDrop={(e) => handleDropOnItem(e, mat, ms.length)}
+                                                            />
+                                                            
+                                                            {ms.length === 0 && (
+                                                                <div className="text-center py-6" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
+                                                                    <span className="material-symbols-rounded" style={{ fontSize: '32px' }}>inbox</span>
+                                                                    <p className="text-xs mt-1">Drag matches here</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
                             )}
