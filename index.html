@@ -520,7 +520,7 @@
             const [pasteText, setPasteText] = useState('');
             const [pasteTeam, setPasteTeam] = useState('t1');
             const [saveName, setSaveName] = useState('');
-            const [manualData, setManualData] = useState({ firstName: '', lastName: '', weight: '', dob: '', exp: '1', skill: '1', team: 't1' });
+            const [manualData, setManualData] = useState({ firstName: '', lastName: '', weight: '', dob: '', exp: '0', skill: '1', team: 't1' });
             
             const total = rosters.t1.length + rosters.t2.length + rosters.t3.length;
             
@@ -652,27 +652,76 @@
                 lines.forEach((line, index) => {
                     if (!line.trim()) return;
                     const v = line.split(/[,\t]/).map(x => x.trim());
-                    if (v.length < 6) { errors.push(`Line ${index + 1}: Not enough columns`); return; }
                     
-                    // Skip header
+                    // Skip header row (only first row)
                     if (index === 0) {
                         const headerKeywords = ['first', 'name', 'last', 'weight', 'dob', 'birth', 'age', 'exp', 'experience', 'skill'];
                         if (headerKeywords.some(k => v[0]?.toLowerCase()?.includes(k))) return;
                     }
                     
+                    // Check column count
+                    if (v.length < 6) { 
+                        errors.push(`Row ${index + 1}: Not enough columns (need 6, found ${v.length})`); 
+                        return; 
+                    }
+                    
                     const [firstName, lastName, weight, dob, exp, skill] = v;
-                    if (!firstName || !lastName) { errors.push(`Line ${index + 1}: Missing name`); return; }
                     
+                    // Check for blank required fields
+                    if (!firstName || firstName.trim() === '') { 
+                        errors.push(`Row ${index + 1}: First name is blank`); 
+                        return; 
+                    }
+                    if (!lastName || lastName.trim() === '') { 
+                        errors.push(`Row ${index + 1}: Last name is blank`); 
+                        return; 
+                    }
+                    if (!weight || weight.trim() === '') { 
+                        errors.push(`Row ${index + 1}: Weight is blank`); 
+                        return; 
+                    }
+                    if (!dob || dob.trim() === '') { 
+                        errors.push(`Row ${index + 1}: DOB is blank`); 
+                        return; 
+                    }
+                    if (exp === undefined || exp === null || exp.toString().trim() === '') { 
+                        errors.push(`Row ${index + 1}: Experience is blank`); 
+                        return; 
+                    }
+                    if (skill === undefined || skill === null || skill.toString().trim() === '') { 
+                        errors.push(`Row ${index + 1}: Skill is blank`); 
+                        return; 
+                    }
+                    
+                    // Validate weight
                     const weightVal = parseFloat(weight);
-                    if (isNaN(weightVal) || weightVal <= 0) { errors.push(`Line ${index + 1}: Invalid weight`); return; }
+                    if (isNaN(weightVal) || weightVal <= 0) { 
+                        errors.push(`Row ${index + 1}: Invalid weight "${weight}"`); 
+                        return; 
+                    }
                     
+                    // Validate DOB
                     const dobDate = new Date(dob);
-                    if (isNaN(dobDate.getTime())) { errors.push(`Line ${index + 1}: Invalid date`); return; }
+                    if (isNaN(dobDate.getTime())) { 
+                        errors.push(`Row ${index + 1}: Invalid date "${dob}"`); 
+                        return; 
+                    }
+                    
+                    // Validate experience (0-6)
+                    const expVal = parseInt(exp);
+                    if (isNaN(expVal) || expVal < 0 || expVal > 6) { 
+                        errors.push(`Row ${index + 1}: Experience must be 0-6, got "${exp}"`); 
+                        return; 
+                    }
+                    
+                    // Validate skill (1-5, 0 is not allowed)
+                    const skillVal = parseInt(skill);
+                    if (isNaN(skillVal) || skillVal < 1 || skillVal > 5) { 
+                        errors.push(`Row ${index + 1}: Skill must be 1-5, got "${skill}"`); 
+                        return; 
+                    }
                     
                     const age = calcAge(dob);
-                    const expVal = parseInt(exp) || 1;
-                    const skillVal = parseInt(skill) || 1;
-                    
                     validRows.push({ FirstName: firstName, LastName: lastName, Weight: weightVal, DOB: dob, Exp: expVal, Skill: skillVal, Age: age, Name: `${firstName} ${lastName}` });
                 });
                 
@@ -682,6 +731,24 @@
             const loadFile = (team, e) => {
                 const file = e.target.files[0];
                 if (!file) return;
+                
+                const processResult = (result) => {
+                    if (result.errors.length > 0) {
+                        // Reject upload and show errors
+                        const errorMsg = result.errors.length <= 3 
+                            ? result.errors.join('\n') 
+                            : `${result.errors.slice(0, 3).join('\n')}\n...and ${result.errors.length - 3} more errors`;
+                        alert(`Upload rejected due to formatting errors:\n\n${errorMsg}\n\nPlease fix and try again.`);
+                        return;
+                    }
+                    if (result.data.length > 0) {
+                        const wrestlers = result.data.map(w => ({ ...w, Team: names[team] }));
+                        setRosters(prev => ({ ...prev, [team]: [...prev[team], ...wrestlers] }));
+                        showToast(`Loaded ${wrestlers.length} wrestlers`, 'success');
+                    } else {
+                        showToast('No valid data found in file', 'error');
+                    }
+                };
                 
                 if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
                     const reader = new FileReader();
@@ -694,13 +761,9 @@
                             const csvLines = json.map(row => row.filter((_, i) => row.slice(0, i + 1).some(c => c)).join(',')).join('\n');
                             
                             const result = parseData(csvLines);
-                            if (result.data.length > 0) {
-                                const wrestlers = result.data.map(w => ({ ...w, Team: names[team] }));
-                                setRosters(prev => ({ ...prev, [team]: [...prev[team], ...wrestlers] }));
-                                showToast(`Loaded ${wrestlers.length} wrestlers`, 'success');
-                            }
+                            processResult(result);
                         } catch (err) {
-                            showToast('Error reading file', 'error');
+                            showToast('Error reading file: ' + err.message, 'error');
                         }
                     };
                     reader.readAsArrayBuffer(file);
@@ -708,11 +771,7 @@
                     const reader = new FileReader();
                     reader.onload = (ev) => {
                         const result = parseData(ev.target.result);
-                        if (result.data.length > 0) {
-                            const wrestlers = result.data.map(w => ({ ...w, Team: names[team] }));
-                            setRosters(prev => ({ ...prev, [team]: [...prev[team], ...wrestlers] }));
-                            showToast(`Loaded ${wrestlers.length} wrestlers`, 'success');
-                        }
+                        processResult(result);
                     };
                     reader.readAsText(file);
                 }
@@ -721,6 +780,14 @@
             
             const handlePaste = () => {
                 const result = parseData(pasteText);
+                if (result.errors.length > 0) {
+                    // Show errors and don't close dialog
+                    const errorMsg = result.errors.length <= 5 
+                        ? result.errors.join('\n') 
+                        : `${result.errors.slice(0, 5).join('\n')}\n...and ${result.errors.length - 5} more errors`;
+                    alert(`Data rejected due to formatting errors:\n\n${errorMsg}\n\nPlease fix and try again.`);
+                    return;
+                }
                 if (result.data.length > 0) {
                     const wrestlers = result.data.map(w => ({ ...w, Team: names[pasteTeam] }));
                     setRosters(prev => ({ ...prev, [pasteTeam]: [...prev[pasteTeam], ...wrestlers] }));
@@ -751,7 +818,7 @@
                 };
                 
                 setRosters(prev => ({ ...prev, [manualData.team]: [...prev[manualData.team], wrestler] }));
-                setManualData({ firstName: '', lastName: '', weight: '', dob: '', exp: '1', skill: '1', team: 't1' });
+                setManualData({ firstName: '', lastName: '', weight: '', dob: '', exp: '0', skill: '1', team: 't1' });
                 setShowManualDialog(false);
                 showToast('Wrestler added successfully!', 'success');
             };
@@ -1216,7 +1283,7 @@
                                 <div className="space-y-6">
                                     <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--md-sys-color-primary-container)', borderLeft: '4px solid var(--md-sys-color-primary)' }}>
                                         <p className="text-sm font-medium" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
-                                            <strong>Format:</strong> FirstName, LastName, Weight, DOB (MM/DD/YYYY), Experience, Skill (1-5)
+                                            <strong>Format:</strong> FirstName, LastName, Weight, DOB (MM/DD/YYYY), Experience (0-6), Skill (1-5)
                                         </p>
                                     </div>
                                     
@@ -1636,9 +1703,9 @@
                             </div>
                             <div className="grid grid-cols-3 gap-4">
                                 <div>
-                                    <label className="block font-semibold mb-2">Experience</label>
+                                    <label className="block font-semibold mb-2">Experience (0-6)</label>
                                     <select value={manualData.exp} onChange={(e) => setManualData(p => ({ ...p, exp: e.target.value }))} className="md-text-field">
-                                        {[1,2,3,4,5,6,7,8,9,10].map(n => <option key={n} value={n}>{n} years</option>)}
+                                        {[0,1,2,3,4,5,6].map(n => <option key={n} value={n}>{n} {n === 1 ? 'year' : 'years'}</option>)}
                                     </select>
                                 </div>
                                 <div>
@@ -1674,8 +1741,8 @@
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-sm font-semibold mb-2">Paste Data (FirstName, LastName, Weight, DOB, Exp, Skill)</label>
-                                <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} className="md-text-field h-64 font-mono text-sm" placeholder="John,Doe,150,01/15/2010,2,3&#10;Jane,Smith,145,03/20/2011,1,2" />
+                                <label className="block text-sm font-semibold mb-2">Paste Data (FirstName, LastName, Weight, DOB, Exp (0-6), Skill (1-5))</label>
+                                <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} className="md-text-field h-64 font-mono text-sm" placeholder="John,Doe,150,01/15/2010,2,3&#10;Jane,Smith,145,03/20/2011,0,2" />
                             </div>
                             <div className="flex gap-3">
                                 <button onClick={handlePaste} className="flex-1 md-filled-button">Import</button>
