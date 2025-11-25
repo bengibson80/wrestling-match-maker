@@ -3,328 +3,617 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wrestling Match Maker Pro - Premium</title>
+    <title>Wrestling Match Maker Pro - Material 3</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Roboto+Flex:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        /* Material 3 Design Tokens */
+        :root {
+            /* Primary */
+            --md-sys-color-primary: #1a5fb4;
+            --md-sys-color-on-primary: #ffffff;
+            --md-sys-color-primary-container: #d4e3ff;
+            --md-sys-color-on-primary-container: #001c3a;
+            
+            /* Secondary */
+            --md-sys-color-secondary: #545f71;
+            --md-sys-color-on-secondary: #ffffff;
+            --md-sys-color-secondary-container: #d8e3f8;
+            --md-sys-color-on-secondary-container: #111c2b;
+            
+            /* Tertiary */
+            --md-sys-color-tertiary: #6d5677;
+            --md-sys-color-on-tertiary: #ffffff;
+            --md-sys-color-tertiary-container: #f6d9ff;
+            --md-sys-color-on-tertiary-container: #271430;
+            
+            /* Error */
+            --md-sys-color-error: #ba1a1a;
+            --md-sys-color-on-error: #ffffff;
+            --md-sys-color-error-container: #ffdad6;
+            --md-sys-color-on-error-container: #410002;
+            
+            /* Surface */
+            --md-sys-color-surface: #fdfbff;
+            --md-sys-color-on-surface: #1a1c1e;
+            --md-sys-color-surface-variant: #dfe2eb;
+            --md-sys-color-on-surface-variant: #43474e;
+            --md-sys-color-surface-container-lowest: #ffffff;
+            --md-sys-color-surface-container-low: #f4f3f7;
+            --md-sys-color-surface-container: #efedf1;
+            --md-sys-color-surface-container-high: #e9e7ec;
+            --md-sys-color-surface-container-highest: #e3e2e6;
+            
+            /* Outline */
+            --md-sys-color-outline: #73777f;
+            --md-sys-color-outline-variant: #c3c6cf;
+            
+            /* Inverse */
+            --md-sys-color-inverse-surface: #2f3033;
+            --md-sys-color-inverse-on-surface: #f1f0f4;
+            --md-sys-color-inverse-primary: #a5c8ff;
+            
+            /* Shadow */
+            --md-sys-color-shadow: #000000;
+            --md-sys-color-scrim: #000000;
+            
+            /* Success (custom) */
+            --md-sys-color-success: #386a20;
+            --md-sys-color-on-success: #ffffff;
+            --md-sys-color-success-container: #b7f397;
+            --md-sys-color-on-success-container: #042100;
+            
+            /* Warning (custom) */
+            --md-sys-color-warning: #7d5700;
+            --md-sys-color-on-warning: #ffffff;
+            --md-sys-color-warning-container: #ffdeab;
+            --md-sys-color-on-warning-container: #271900;
+        }
         
         * {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Roboto Flex', 'Roboto', sans-serif;
+            -webkit-tap-highlight-color: transparent;
         }
         
         body {
             font-size: 14px;
+            background-color: var(--md-sys-color-surface);
+            color: var(--md-sys-color-on-surface);
+            margin: 0;
         }
         
-        /* Keep buttons, tabs, and controls at normal size */
-        button, select, input[type="text"], .tab-button {
-            font-size: 100% !important;
+        /* M3 Typography */
+        .display-large { font-size: 57px; line-height: 64px; font-weight: 400; }
+        .display-medium { font-size: 45px; line-height: 52px; font-weight: 400; }
+        .display-small { font-size: 36px; line-height: 44px; font-weight: 400; }
+        .headline-large { font-size: 32px; line-height: 40px; font-weight: 400; }
+        .headline-medium { font-size: 28px; line-height: 36px; font-weight: 400; }
+        .headline-small { font-size: 24px; line-height: 32px; font-weight: 400; }
+        .title-large { font-size: 22px; line-height: 28px; font-weight: 500; }
+        .title-medium { font-size: 16px; line-height: 24px; font-weight: 500; letter-spacing: 0.15px; }
+        .title-small { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; }
+        .body-large { font-size: 16px; line-height: 24px; font-weight: 400; letter-spacing: 0.5px; }
+        .body-medium { font-size: 14px; line-height: 20px; font-weight: 400; letter-spacing: 0.25px; }
+        .body-small { font-size: 12px; line-height: 16px; font-weight: 400; letter-spacing: 0.4px; }
+        .label-large { font-size: 14px; line-height: 20px; font-weight: 500; letter-spacing: 0.1px; }
+        .label-medium { font-size: 12px; line-height: 16px; font-weight: 500; letter-spacing: 0.5px; }
+        .label-small { font-size: 11px; line-height: 16px; font-weight: 500; letter-spacing: 0.5px; }
+        
+        /* M3 Elevation */
+        .elevation-0 { box-shadow: none; }
+        .elevation-1 { box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px 1px rgba(0,0,0,0.15); }
+        .elevation-2 { box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 2px 6px 2px rgba(0,0,0,0.15); }
+        .elevation-3 { box-shadow: 0 4px 8px 3px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.3); }
+        .elevation-4 { box-shadow: 0 6px 10px 4px rgba(0,0,0,0.15), 0 2px 3px rgba(0,0,0,0.3); }
+        .elevation-5 { box-shadow: 0 8px 12px 6px rgba(0,0,0,0.15), 0 4px 4px rgba(0,0,0,0.3); }
+        
+        /* M3 Shape */
+        .shape-none { border-radius: 0; }
+        .shape-extra-small { border-radius: 4px; }
+        .shape-small { border-radius: 8px; }
+        .shape-medium { border-radius: 12px; }
+        .shape-large { border-radius: 16px; }
+        .shape-extra-large { border-radius: 28px; }
+        .shape-full { border-radius: 9999px; }
+        
+        /* M3 Button Base */
+        .m3-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 40px;
+            padding: 0 24px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.1px;
+            border: none;
+            cursor: pointer;
+            transition: all 200ms cubic-bezier(0.2, 0, 0, 1);
+            text-decoration: none;
+            white-space: nowrap;
         }
         
-        /* Make content areas more compact */
-        .wrestler-card, .match-card {
-            font-size: 90%;
-            transition: all 0.2s ease;
+        .m3-btn:disabled {
+            opacity: 0.38;
+            cursor: not-allowed;
         }
         
-        .match-card.dragging {
-            opacity: 0.5;
-            transform: scale(0.95);
-            cursor: grabbing;
+        /* M3 Filled Button */
+        .m3-btn-filled {
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+        }
+        .m3-btn-filled:hover:not(:disabled) {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px 1px rgba(0,0,0,0.15);
+        }
+        .m3-btn-filled:active:not(:disabled) {
+            transform: scale(0.98);
         }
         
-        .match-card:hover {
-            transform: translateY(-1px);
+        /* M3 Tonal Button */
+        .m3-btn-tonal {
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+        }
+        .m3-btn-tonal:hover:not(:disabled) {
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px 1px rgba(0,0,0,0.15);
         }
         
+        /* M3 Outlined Button */
+        .m3-btn-outlined {
+            background-color: transparent;
+            color: var(--md-sys-color-primary);
+            border: 1px solid var(--md-sys-color-outline);
+        }
+        .m3-btn-outlined:hover:not(:disabled) {
+            background-color: var(--md-sys-color-primary);
+            background-color: rgba(26, 95, 180, 0.08);
+        }
+        
+        /* M3 Text Button */
+        .m3-btn-text {
+            background-color: transparent;
+            color: var(--md-sys-color-primary);
+            padding: 0 12px;
+        }
+        .m3-btn-text:hover:not(:disabled) {
+            background-color: rgba(26, 95, 180, 0.08);
+        }
+        
+        /* M3 FAB */
+        .m3-fab {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background-color: var(--md-sys-color-primary-container);
+            color: var(--md-sys-color-on-primary-container);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px 3px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.3);
+            transition: all 200ms cubic-bezier(0.2, 0, 0, 1);
+        }
+        .m3-fab:hover {
+            box-shadow: 0 6px 10px 4px rgba(0,0,0,0.15), 0 2px 3px rgba(0,0,0,0.3);
+        }
+        
+        /* M3 Card */
+        .m3-card {
+            background-color: var(--md-sys-color-surface-container-low);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 200ms cubic-bezier(0.2, 0, 0, 1);
+        }
+        .m3-card-elevated {
+            background-color: var(--md-sys-color-surface-container-low);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 1px 3px 1px rgba(0,0,0,0.15);
+        }
+        .m3-card-filled {
+            background-color: var(--md-sys-color-surface-container-highest);
+        }
+        .m3-card-outlined {
+            background-color: var(--md-sys-color-surface);
+            border: 1px solid var(--md-sys-color-outline-variant);
+        }
+        
+        /* M3 Text Field */
+        .m3-text-field {
+            position: relative;
+            width: 100%;
+        }
+        .m3-text-field input,
+        .m3-text-field select,
+        .m3-text-field textarea {
+            width: 100%;
+            height: 56px;
+            padding: 16px;
+            padding-top: 24px;
+            border: none;
+            border-radius: 4px 4px 0 0;
+            background-color: var(--md-sys-color-surface-container-highest);
+            color: var(--md-sys-color-on-surface);
+            font-size: 16px;
+            outline: none;
+            border-bottom: 2px solid var(--md-sys-color-on-surface-variant);
+            transition: all 200ms;
+        }
+        .m3-text-field input:focus,
+        .m3-text-field select:focus,
+        .m3-text-field textarea:focus {
+            border-bottom-color: var(--md-sys-color-primary);
+        }
+        .m3-text-field label {
+            position: absolute;
+            left: 16px;
+            top: 8px;
+            font-size: 12px;
+            color: var(--md-sys-color-on-surface-variant);
+            pointer-events: none;
+        }
+        .m3-text-field textarea {
+            height: auto;
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        /* M3 Chip */
+        .m3-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 32px;
+            padding: 0 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.1px;
+            cursor: pointer;
+            transition: all 150ms;
+        }
+        .m3-chip-assist {
+            background-color: var(--md-sys-color-surface);
+            border: 1px solid var(--md-sys-color-outline);
+            color: var(--md-sys-color-on-surface);
+        }
+        .m3-chip-filter {
+            background-color: var(--md-sys-color-surface-container-low);
+            color: var(--md-sys-color-on-surface-variant);
+        }
+        .m3-chip-filter.selected {
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
+        }
+        
+        /* M3 Navigation Bar / Tabs */
+        .m3-tabs {
+            display: flex;
+            background-color: var(--md-sys-color-surface);
+            border-bottom: 1px solid var(--md-sys-color-surface-variant);
+        }
+        .m3-tab {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            padding: 12px 16px;
+            color: var(--md-sys-color-on-surface-variant);
+            cursor: pointer;
+            position: relative;
+            transition: all 200ms;
+            border: none;
+            background: transparent;
+            min-height: 64px;
+        }
+        .m3-tab:hover {
+            background-color: rgba(26, 95, 180, 0.08);
+        }
+        .m3-tab.active {
+            color: var(--md-sys-color-primary);
+        }
+        .m3-tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 48px;
+            height: 3px;
+            background-color: var(--md-sys-color-primary);
+            border-radius: 3px 3px 0 0;
+        }
+        .m3-tab-icon {
+            font-size: 24px;
+        }
+        .m3-tab-label {
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        
+        /* M3 Dialog/Modal */
+        .m3-dialog-backdrop {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.32);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 150ms ease-out;
+        }
+        .m3-dialog {
+            background-color: var(--md-sys-color-surface-container-high);
+            border-radius: 28px;
+            padding: 24px;
+            max-width: 560px;
+            width: calc(100% - 48px);
+            max-height: calc(100vh - 48px);
+            overflow-y: auto;
+            box-shadow: 0 8px 12px 6px rgba(0,0,0,0.15), 0 4px 4px rgba(0,0,0,0.3);
+            animation: slideUp 200ms cubic-bezier(0.2, 0, 0, 1);
+        }
+        .m3-dialog-large {
+            max-width: 800px;
+        }
+        .m3-dialog-xl {
+            max-width: 1100px;
+        }
+        .m3-dialog-title {
+            font-size: 24px;
+            font-weight: 400;
+            color: var(--md-sys-color-on-surface);
+            margin-bottom: 16px;
+        }
+        
+        /* M3 Snackbar */
+        .m3-snackbar {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: var(--md-sys-color-inverse-surface);
+            color: var(--md-sys-color-inverse-on-surface);
+            padding: 14px 16px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 344px;
+            max-width: 672px;
+            box-shadow: 0 4px 8px 3px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.3);
+            z-index: 2000;
+            animation: slideUp 200ms cubic-bezier(0.2, 0, 0, 1);
+        }
+        .m3-snackbar-action {
+            color: var(--md-sys-color-inverse-primary);
+            background: none;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        /* M3 Progress Indicator */
+        .m3-progress {
+            height: 4px;
+            background-color: var(--md-sys-color-surface-container-highest);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .m3-progress-bar {
+            height: 100%;
+            background-color: var(--md-sys-color-primary);
+            border-radius: 2px;
+            transition: width 300ms cubic-bezier(0.2, 0, 0, 1);
+        }
+        
+        /* Custom scrollbar */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: var(--md-sys-color-surface-container);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: var(--md-sys-color-outline);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: var(--md-sys-color-on-surface-variant);
+        }
+        
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
         @keyframes slideIn {
             from { transform: translateY(-20px); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
         }
         
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        .animate-fade-in { animation: fadeIn 200ms ease-out; }
+        .animate-slide-up { animation: slideUp 200ms cubic-bezier(0.2, 0, 0, 1); }
+        .animate-slide-in { animation: slideIn 200ms cubic-bezier(0.2, 0, 0, 1); }
+        
+        /* Drag and Drop */
+        .dragging { opacity: 0.5; transform: scale(0.98); }
+        .drag-over { background-color: var(--md-sys-color-primary-container); }
+        
+        /* Match/Wrestler Cards */
+        .wrestler-card, .match-card {
+            transition: all 200ms cubic-bezier(0.2, 0, 0, 1);
+        }
+        .wrestler-card:hover, .match-card:hover {
+            background-color: var(--md-sys-color-surface-container);
         }
         
-        @keyframes slideUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
-        }
-        
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-        
-        .animate-slide-in {
-            animation: slideIn 0.3s ease-out;
-        }
-        
-        .animate-fade-in {
-            animation: fadeIn 0.3s ease-out;
-        }
-        
-        .animate-slide-up {
-            animation: slideUp 0.3s ease-out;
-        }
-        
-        .animate-pulse-once {
-            animation: pulse 0.5s ease-out;
-        }
-        
-        .drag-over {
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-            border: 2px dashed #3B82F6;
-        }
-        
-        .dragging {
-            opacity: 0.5;
-            transform: rotate(5deg);
-        }
-        
-        .glass {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
-        
-        .gradient-text {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 10px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 10px;
-        }
-        
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-        
-        .toast {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 9999;
-            animation: slideIn 0.3s ease-out;
-        }
-        
+        /* Print styles */
         @media print {
-            .no-print {
-                display: none !important;
-            }
-            .print-only {
-                display: block !important;
-            }
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+        }
+        .print-only { display: none; }
+        
+        /* Icon button */
+        .m3-icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            background: transparent;
+            color: var(--md-sys-color-on-surface-variant);
+            cursor: pointer;
+            transition: background-color 200ms;
+        }
+        .m3-icon-btn:hover {
+            background-color: var(--md-sys-color-surface-container-highest);
         }
         
-        .print-only {
-            display: none;
+        /* Color input styling */
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            cursor: pointer;
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid var(--md-sys-color-outline-variant);
+            border-radius: 20px;
         }
         
-        .stat-card {
-            transition: all 0.3s ease;
+        /* Segmented Button */
+        .m3-segmented-btn-group {
+            display: flex;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 20px;
+            overflow: hidden;
         }
-        
-        .stat-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        .m3-segmented-btn {
+            flex: 1;
+            padding: 10px 16px;
+            background: transparent;
+            border: none;
+            color: var(--md-sys-color-on-surface);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 200ms;
+            border-right: 1px solid var(--md-sys-color-outline);
         }
-        
-        .match-card {
-            transition: all 0.2s ease;
+        .m3-segmented-btn:last-child {
+            border-right: none;
         }
-        
-        .match-card:hover {
-            transform: scale(1.02);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        .m3-segmented-btn.active {
+            background-color: var(--md-sys-color-secondary-container);
+            color: var(--md-sys-color-on-secondary-container);
         }
-        
-        .wrestler-card {
-            transition: all 0.2s ease;
-        }
-        
-        .wrestler-card:hover {
-            transform: translateX(5px);
-        }
-        
-        .modal-backdrop {
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            transition: all 0.3s ease;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
-        }
-        
-        .btn-primary:active {
-            transform: translateY(0);
-        }
-        
-        .tab-button {
-            position: relative;
-            transition: all 0.3s ease;
-        }
-        
-        .tab-button::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            transform: scaleX(0);
-            transition: transform 0.3s ease;
-        }
-        
-        .tab-button.active::after {
-            transform: scaleX(1);
-        }
-        
-        .fade-enter {
-            opacity: 0;
-        }
-        
-        .fade-enter-active {
-            opacity: 1;
-            transition: opacity 300ms;
-        }
-        
-        .dark-mode {
-            background: #1a1a2e;
-            color: #eee;
-        }
-        
-        .dark-mode .glass {
-            background: rgba(30, 30, 46, 0.9);
+        .m3-segmented-btn:hover:not(.active) {
+            background-color: rgba(26, 95, 180, 0.08);
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+<body>
     <div id="root"></div>
     <script type="text/babel">
         const { useState, useCallback, useEffect, useRef, useMemo } = React;
         
-        // Toast notification component
-        const Toast = ({ message, type = 'success', onClose }) => {
+        // M3 Snackbar Component
+        const Snackbar = ({ message, type = 'info', onClose }) => {
             useEffect(() => {
-                const timer = setTimeout(onClose, 3000);
+                const timer = setTimeout(onClose, 4000);
                 return () => clearTimeout(timer);
             }, [onClose]);
             
             const icons = {
-                success: '✓',
-                error: '✕',
-                warning: '⚠',
-                info: 'ℹ'
-            };
-            
-            const colors = {
-                success: 'bg-green-500',
-                error: 'bg-red-500',
-                warning: 'bg-yellow-500',
-                info: 'bg-blue-500'
+                success: 'check_circle',
+                error: 'error',
+                warning: 'warning',
+                info: 'info'
             };
             
             return (
-                <div className={`toast ${colors[type]} text-white px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 min-w-[300px]`}>
-                    <span className="text-2xl font-bold">{icons[type]}</span>
-                    <span className="flex-1 font-medium">{message}</span>
-                    <button onClick={onClose} className="text-white hover:text-gray-200 font-bold text-xl">×</button>
+                <div className="m3-snackbar">
+                    <span className="material-icons-round" style={{ fontSize: 24 }}>{icons[type]}</span>
+                    <span className="flex-1 body-medium">{message}</span>
+                    <button className="m3-snackbar-action" onClick={onClose}>Dismiss</button>
                 </div>
             );
         };
         
-        // Toast container component
-        const ToastContainer = ({ toasts, removeToast }) => {
-            return (
-                <div className="fixed top-4 right-4 z-50 space-y-2">
-                    {toasts.map(toast => (
-                        <Toast key={toast.id} {...toast} onClose={() => removeToast(toast.id)} />
-                    ))}
-                </div>
-            );
+        const SnackbarContainer = ({ toasts, removeToast }) => {
+            if (toasts.length === 0) return null;
+            const latest = toasts[toasts.length - 1];
+            return <Snackbar key={latest.id} {...latest} onClose={() => removeToast(latest.id)} />;
         };
         
-        // Modal component
-        const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
+        // M3 Dialog Component
+        const Dialog = ({ isOpen, onClose, title, children, size = 'md' }) => {
             if (!isOpen) return null;
             
-            const sizes = {
-                sm: 'max-w-md',
-                md: 'max-w-2xl',
-                lg: 'max-w-4xl',
-                xl: 'max-w-6xl'
-            };
+            const sizeClass = size === 'lg' ? 'm3-dialog-large' : size === 'xl' ? 'm3-dialog-xl' : '';
             
             return (
-                <div className="fixed inset-0 z-50 overflow-y-auto modal-backdrop animate-fade-in" onClick={onClose}>
-                    <div className="flex items-center justify-center min-h-screen p-4">
-                        <div 
-                            className={`glass rounded-2xl shadow-2xl ${sizes[size]} w-full animate-slide-up`}
-                            onClick={(e) => e.stopPropagation()}
-                        >
-                            <div className="p-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-2xl font-bold gradient-text">{title}</h2>
-                                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-3xl font-bold leading-none">×</button>
-                                </div>
-                                <div className="mt-4">
-                                    {children}
-                                </div>
-                            </div>
+                <div className="m3-dialog-backdrop animate-fade-in" onClick={onClose}>
+                    <div className={`m3-dialog ${sizeClass} animate-slide-up custom-scrollbar`} onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="m3-dialog-title">{title}</h2>
+                            <button className="m3-icon-btn" onClick={onClose}>
+                                <span className="material-icons-round">close</span>
+                            </button>
                         </div>
+                        <div>{children}</div>
                     </div>
                 </div>
             );
         };
         
-        // Stats card component
-        const StatCard = ({ title, value, icon, color = 'blue', trend }) => {
+        // M3 Stat Card Component
+        const StatCard = ({ title, value, icon, color = 'primary' }) => {
+            const colorStyles = {
+                primary: { bg: 'var(--md-sys-color-primary-container)', text: 'var(--md-sys-color-on-primary-container)' },
+                secondary: { bg: 'var(--md-sys-color-secondary-container)', text: 'var(--md-sys-color-on-secondary-container)' },
+                tertiary: { bg: 'var(--md-sys-color-tertiary-container)', text: 'var(--md-sys-color-on-tertiary-container)' },
+                success: { bg: 'var(--md-sys-color-success-container)', text: 'var(--md-sys-color-on-success-container)' },
+                warning: { bg: 'var(--md-sys-color-warning-container)', text: 'var(--md-sys-color-on-warning-container)' },
+                error: { bg: 'var(--md-sys-color-error-container)', text: 'var(--md-sys-color-on-error-container)' },
+            };
+            const style = colorStyles[color] || colorStyles.primary;
+            
             return (
-                <div className={`stat-card glass rounded-xl p-6 border-l-4 border-${color}-500`}>
+                <div className="m3-card m3-card-filled" style={{ backgroundColor: style.bg }}>
                     <div className="flex justify-between items-start">
                         <div>
-                            <p className="text-sm font-medium text-gray-600">{title}</p>
-                            <p className="text-3xl font-bold text-gray-900 mt-2">{value}</p>
-                            {trend && (
-                                <p className={`text-sm mt-2 ${trend > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {trend > 0 ? '↑' : '↓'} {Math.abs(trend)}%
-                                </p>
-                            )}
+                            <p className="label-medium" style={{ color: style.text, opacity: 0.8 }}>{title}</p>
+                            <p className="headline-medium mt-2" style={{ color: style.text }}>{value}</p>
                         </div>
-                        <div className={`text-4xl bg-${color}-100 text-${color}-600 p-3 rounded-lg`}>
-                            {icon}
-                        </div>
+                        <div className="text-3xl" style={{ color: style.text }}>{icon}</div>
                     </div>
                 </div>
             );
@@ -334,7 +623,7 @@
             const [rosters, setRosters] = useState({ t1: [], t2: [], t3: [] });
             const [names, setNames] = useState({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3' });
             const [abbrevs, setAbbrevs] = useState({ t1: 'T1', t2: 'T2', t3: 'T3' });
-            const [colors, setColors] = useState({ t1: '#3B82F6', t2: '#8B5CF6', t3: '#10B981' });
+            const [colors, setColors] = useState({ t1: '#1a5fb4', t2: '#6d5677', t3: '#386a20' });
             const [matches, setMatches] = useState([]);
             const [scratched, setScratched] = useState([]);
             const [settings, setSettings] = useState({ 
@@ -356,8 +645,6 @@
             const [toasts, setToasts] = useState([]);
             const [history, setHistory] = useState([]);
             const [historyIndex, setHistoryIndex] = useState(-1);
-            const [darkMode, setDarkMode] = useState(false);
-            const [showAnalytics, setShowAnalytics] = useState(false);
             const [filterText, setFilterText] = useState('');
             const [sortBy, setSortBy] = useState('name');
             
@@ -366,7 +653,7 @@
             const [showManageDialog, setShowManageDialog] = useState(false);
             const [showPasteDialog, setShowPasteDialog] = useState(false);
             const [showScratchDialog, setShowScratchDialog] = useState(false);
-            const [showSettingsDialog, setShowSettingsDialog] = useState(false);
+            const [showAnalytics, setShowAnalytics] = useState(false);
             const [pasteText, setPasteText] = useState('');
             const [pasteTeam, setPasteTeam] = useState('t1');
             const [saveName, setSaveName] = useState('');
@@ -413,12 +700,10 @@
                         }
                     }
                 };
-                
                 window.addEventListener('keydown', handleKeyPress);
                 return () => window.removeEventListener('keydown', handleKeyPress);
             }, [historyIndex]);
             
-            // Add to history for undo/redo
             const addToHistory = useCallback((state) => {
                 setHistory(prev => {
                     const newHistory = prev.slice(0, historyIndex + 1);
@@ -467,7 +752,7 @@
                     const data = saved[name];
                     setRosters(data.rosters);
                     setNames(data.names);
-                    setAbbrevs(data.abbrevs || { t1: 'T1', t2: 'T2', t3: 'T3' }); // Fallback for old saves
+                    setAbbrevs(data.abbrevs || { t1: 'T1', t2: 'T2', t3: 'T3' });
                     setColors(data.colors);
                     setMatches(data.matches);
                     setScratched(data.scratched || []);
@@ -490,7 +775,7 @@
                 setRosters({ t1: [], t2: [], t3: [] });
                 setNames({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3' });
                 setAbbrevs({ t1: 'T1', t2: 'T2', t3: 'T3' });
-                setColors({ t1: '#3B82F6', t2: '#8B5CF6', t3: '#10B981' });
+                setColors({ t1: '#1a5fb4', t2: '#6d5677', t3: '#386a20' });
                 setMatches([]);
                 setScratched([]);
                 setCurrentTournament('');
@@ -894,35 +1179,24 @@
                 return k ? abbrevs[k] : 'XX';
             };
             
-            // Handler to update team name and sync with all wrestlers and matches
             const handleTeamNameChange = (teamKey, newName) => {
                 const oldName = names[teamKey];
-                
-                // Update team name
                 setNames(p => ({ ...p, [teamKey]: newName }));
-                
-                // Update all wrestlers with this team
                 setRosters(prev => ({
                     ...prev,
                     [teamKey]: prev[teamKey].map(w => ({ ...w, Team: newName }))
                 }));
-                
-                // Update all matches with this team
                 setMatches(prev => prev.map(m => ({
                     ...m,
                     w1: m.w1.Team === oldName ? { ...m.w1, Team: newName } : m.w1,
                     w2: m.w2.Team === oldName ? { ...m.w2, Team: newName } : m.w2
                 })));
-                
-                // Update scratched wrestlers
                 setScratched(prev => prev.map(w => 
                     w.Team === oldName ? { ...w, Team: newName } : w
                 ));
             };
             
-            // Sync all team names to match current names state
             const syncAllTeamNames = () => {
-                // Update all rosters
                 setRosters(prev => {
                     const updated = {};
                     ['t1', 't2', 't3'].forEach(tk => {
@@ -931,15 +1205,12 @@
                     return updated;
                 });
                 
-                // Create a mapping of old names to new names for matches
                 const teamMap = new Map();
                 ['t1', 't2', 't3'].forEach(tk => {
                     teamMap.set(tk, names[tk]);
                 });
                 
-                // Update all matches - map by finding which roster each wrestler belongs to
                 setMatches(prev => prev.map(m => {
-                    // Find which team w1 belongs to
                     let w1TeamKey = null;
                     let w2TeamKey = null;
                     
@@ -955,7 +1226,6 @@
                     };
                 }));
                 
-                // Update scratched wrestlers
                 setScratched(prev => prev.map(w => {
                     let teamKey = null;
                     ['t1', 't2', 't3'].forEach(tk => {
@@ -965,7 +1235,6 @@
                 }));
             };
             
-            // Run sync when names change
             useEffect(() => {
                 if (matches.length > 0 || rosters.t1.length > 0 || rosters.t2.length > 0 || rosters.t3.length > 0) {
                     syncAllTeamNames();
@@ -995,7 +1264,6 @@
             const exportExcel = () => {
                 const wb = XLSX.utils.book_new();
                 
-                // Create team roster sheets
                 ['t1', 't2', 't3'].forEach(tk => {
                     if (!rosters[tk].length) return;
                     
@@ -1013,42 +1281,16 @@
                     });
                     
                     const ws = XLSX.utils.aoa_to_sheet(data);
-                    
-                    // Set column widths
                     ws['!cols'] = [{ wch: 5 }, { wch: 8 }, { wch: 5 }, { wch: 2 }, { wch: 25 }, { wch: 8 }, { wch: 18 }];
-                    
-                    // Configure print settings for portrait orientation
-                    ws['!margins'] = {
-                        left: 0.5,
-                        right: 0.5,
-                        top: 0.75,
-                        bottom: 0.75,
-                        header: 0.3,
-                        footer: 0.3
-                    };
-                    
-                    // Set print area and page setup
-                    const range = XLSX.utils.decode_range(ws['!ref']);
+                    ws['!margins'] = { left: 0.5, right: 0.5, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 };
                     ws['!autofilter'] = { ref: ws['!ref'] };
-                    
-                    // Page setup for portrait printing
-                    ws['!pageSetup'] = {
-                        paperSize: 1, // Letter paper (8.5 x 11)
-                        orientation: 'portrait',
-                        scale: 100,
-                        fitToWidth: 1,
-                        fitToHeight: 0, // Allow multiple pages vertically if needed
-                        fitToPage: true
-                    };
-                    
-                    // Set print titles (repeat header row on each page)
-                    ws['!rows'] = [{ hpt: 20, hpx: 20 }]; // Make header row taller
+                    ws['!pageSetup'] = { paperSize: 1, orientation: 'portrait', scale: 100, fitToWidth: 1, fitToHeight: 0, fitToPage: true };
+                    ws['!rows'] = [{ hpt: 20, hpx: 20 }];
                     ws['!printHeader'] = 'A1:G1';
                     
                     XLSX.utils.book_append_sheet(wb, ws, abbrevs[tk]);
                 });
                 
-                // Create mat sheets
                 [1, 2, 3].forEach(mat => {
                     const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.num - b.num);
                     if (!ms.length) return;
@@ -1063,36 +1305,11 @@
                     });
                     
                     const ws = XLSX.utils.aoa_to_sheet(data);
-                    
-                    // Set column widths optimized for portrait printing
                     ws['!cols'] = [{ wch: 10 }, { wch: 8 }, { wch: 25 }, { wch: 8 }, { wch: 25 }];
-                    
-                    // Configure print settings for portrait orientation
-                    ws['!margins'] = {
-                        left: 0.5,
-                        right: 0.5,
-                        top: 0.75,
-                        bottom: 0.75,
-                        header: 0.3,
-                        footer: 0.3
-                    };
-                    
-                    // Page setup for portrait printing
-                    ws['!pageSetup'] = {
-                        paperSize: 1, // Letter paper (8.5 x 11)
-                        orientation: 'portrait',
-                        scale: 100,
-                        fitToWidth: 1, // Fit all columns on one page width
-                        fitToHeight: 0, // Allow multiple pages vertically
-                        fitToPage: true,
-                        horizontalCentered: true // Center content horizontally
-                    };
-                    
-                    // Set print titles (repeat header row on each page)
-                    ws['!rows'] = [{ hpt: 20, hpx: 20 }]; // Make header row taller
+                    ws['!margins'] = { left: 0.5, right: 0.5, top: 0.75, bottom: 0.75, header: 0.3, footer: 0.3 };
+                    ws['!pageSetup'] = { paperSize: 1, orientation: 'portrait', scale: 100, fitToWidth: 1, fitToHeight: 0, fitToPage: true, horizontalCentered: true };
+                    ws['!rows'] = [{ hpt: 20, hpx: 20 }];
                     ws['!printHeader'] = 'A1:E1';
-                    
-                    // Add autofilter to header row
                     ws['!autofilter'] = { ref: ws['!ref'] };
                     
                     XLSX.utils.book_append_sheet(wb, ws, `Mat ${mat}`);
@@ -1103,8 +1320,6 @@
                 addToast('Excel file downloaded!', 'success');
             };
             
-            
-            // Analytics calculations
             const analytics = useMemo(() => {
                 const all = [...rosters.t1, ...rosters.t2, ...rosters.t3];
                 const matchCounts = {};
@@ -1114,9 +1329,7 @@
                     matchCounts[m.w2Key]++;
                 });
                 
-                const distribution = {
-                    0: 0, 1: 0, 2: 0, 3: 0, '4+': 0
-                };
+                const distribution = { 0: 0, 1: 0, 2: 0, 3: 0, '4+': 0 };
                 Object.values(matchCounts).forEach(count => {
                     if (count >= 4) distribution['4+']++;
                     else distribution[count]++;
@@ -1127,13 +1340,10 @@
                     if (m.wtPct <= 5) score += 3;
                     else if (m.wtPct <= 10) score += 2;
                     else score += 1;
-                    
                     if (m.ageDiff === 0) score += 2;
                     else if (m.ageDiff === 1) score += 1;
-                    
                     if (m.skillDiff === 0) score += 2;
                     else if (m.skillDiff <= 2) score += 1;
-                    
                     return score;
                 });
                 
@@ -1162,7 +1372,6 @@
             
             const total = rosters.t1.length + rosters.t2.length + rosters.t3.length;
             
-            // Filter and sort wrestlers
             const getFilteredRoster = (teamKey) => {
                 let filtered = rosters[teamKey].filter(w => 
                     w.Name.toLowerCase().includes(filterText.toLowerCase())
@@ -1187,151 +1396,181 @@
             };
             
             return (
-                <div className={`min-h-screen ${darkMode ? 'dark-mode' : 'bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50'}`}>
-                    <ToastContainer toasts={toasts} removeToast={removeToast} />
+                <div className="min-h-screen" style={{ backgroundColor: 'var(--md-sys-color-surface)' }}>
+                    <SnackbarContainer toasts={toasts} removeToast={removeToast} />
                     
-                    <div className="max-w-7xl mx-auto p-4">
-                        {/* Header */}
-                        <div className="glass rounded-2xl shadow-2xl mb-6 overflow-hidden animate-slide-in">
-                            <div className="gradient-bg text-white p-6">
+                    <div className="max-w-7xl mx-auto">
+                        {/* App Bar */}
+                        <header className="elevation-2 animate-slide-in" style={{ backgroundColor: 'var(--md-sys-color-surface)' }}>
+                            <div className="px-4 py-4">
                                 <div className="flex justify-between items-center flex-wrap gap-4">
                                     <div>
-                                        <h1 className="text-3xl font-bold mb-2">Wrestling Match Maker Pro</h1>
-                                        <p className="text-blue-100">
+                                        <h1 className="headline-medium" style={{ color: 'var(--md-sys-color-on-surface)' }}>
+                                            Wrestling Match Maker
+                                        </h1>
+                                        <p className="body-medium mt-1" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
                                             {currentTournament ? (
                                                 <span className="flex items-center gap-2">
-                                                    <span className="inline-block w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                                                    <span className="material-icons-round" style={{ fontSize: 16, color: 'var(--md-sys-color-success)' }}>sync</span>
                                                     {currentTournament} (auto-saving)
                                                 </span>
                                             ) : 'Smart pairing for 2-3 team scrambles'}
                                         </p>
                                     </div>
-                                    <div className="flex gap-2 flex-wrap">
-                                        <button onClick={newTournament} className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 text-sm shadow-lg">
-                                            🆕 New
+                                    <div className="flex gap-2 flex-wrap items-center">
+                                        <button onClick={newTournament} className="m3-btn m3-btn-tonal">
+                                            <span className="material-icons-round" style={{ fontSize: 18 }}>add</span>
+                                            New
                                         </button>
-                                        <button onClick={() => setShowSaveDialog(true)} className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 text-sm shadow-lg">
-                                            💾 Save
+                                        <button onClick={() => setShowSaveDialog(true)} className="m3-btn m3-btn-tonal">
+                                            <span className="material-icons-round" style={{ fontSize: 18 }}>save</span>
+                                            Save
                                         </button>
                                         {savedTournaments.length > 0 && (
                                             <>
-                                                <select onChange={(e) => e.target.value && loadTournament(e.target.value)} className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold cursor-pointer text-sm shadow-lg">
-                                                    <option value="">📂 Load...</option>
+                                                <select 
+                                                    onChange={(e) => e.target.value && loadTournament(e.target.value)} 
+                                                    className="m3-btn m3-btn-outlined"
+                                                    style={{ minWidth: 120 }}
+                                                >
+                                                    <option value="">Load...</option>
                                                     {savedTournaments.map(name => (
                                                         <option key={name} value={name}>{name}</option>
                                                     ))}
                                                 </select>
-                                                <button onClick={() => setShowManageDialog(true)} className="bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-all transform hover:scale-105 text-sm shadow-lg">
-                                                    ⚙️ Manage
+                                                <button onClick={() => setShowManageDialog(true)} className="m3-btn m3-btn-outlined">
+                                                    <span className="material-icons-round" style={{ fontSize: 18 }}>settings</span>
                                                 </button>
                                             </>
                                         )}
                                         {scratched.length > 0 && (
-                                            <button onClick={() => setShowScratchDialog(true)} className="bg-yellow-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-yellow-600 transition-all transform hover:scale-105 text-sm shadow-lg">
-                                                ⚠️ Scratches ({scratched.length})
+                                            <button 
+                                                onClick={() => setShowScratchDialog(true)} 
+                                                className="m3-btn"
+                                                style={{ backgroundColor: 'var(--md-sys-color-warning-container)', color: 'var(--md-sys-color-on-warning-container)' }}
+                                            >
+                                                <span className="material-icons-round" style={{ fontSize: 18 }}>warning</span>
+                                                Scratches ({scratched.length})
                                             </button>
                                         )}
                                         {matches.length > 0 && (
                                             <>
-                                                <button onClick={() => setShowAnalytics(true)} className="bg-purple-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-600 transition-all transform hover:scale-105 text-sm shadow-lg">
-                                                    📊 Analytics
+                                                <button onClick={() => setShowAnalytics(true)} className="m3-btn m3-btn-tonal">
+                                                    <span className="material-icons-round" style={{ fontSize: 18 }}>analytics</span>
+                                                    Analytics
                                                 </button>
-                                                <button onClick={exportExcel} className="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-all transform hover:scale-105 text-sm shadow-lg">
-                                                    📥 Export
+                                                <button 
+                                                    onClick={exportExcel} 
+                                                    className="m3-btn"
+                                                    style={{ backgroundColor: 'var(--md-sys-color-success-container)', color: 'var(--md-sys-color-on-success-container)' }}
+                                                >
+                                                    <span className="material-icons-round" style={{ fontSize: 18 }}>download</span>
+                                                    Export
                                                 </button>
                                             </>
                                         )}
                                         {historyIndex > 0 && (
-                                            <button onClick={undo} className="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition-all transform hover:scale-105 text-sm shadow-lg" title="Undo (Ctrl+Z)">
-                                                ↶
+                                            <button onClick={undo} className="m3-icon-btn" title="Undo (Ctrl+Z)">
+                                                <span className="material-icons-round">undo</span>
                                             </button>
                                         )}
                                         {historyIndex < history.length - 1 && (
-                                            <button onClick={redo} className="bg-gray-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-gray-600 transition-all transform hover:scale-105 text-sm shadow-lg" title="Redo (Ctrl+Y)">
-                                                ↷
+                                            <button onClick={redo} className="m3-icon-btn" title="Redo (Ctrl+Y)">
+                                                <span className="material-icons-round">redo</span>
                                             </button>
                                         )}
                                     </div>
                                 </div>
                             </div>
                             
-                            {/* Tabs */}
-                            <div className="flex border-b bg-white">
-                                <button onClick={() => setTab('upload')} className={`tab-button px-6 py-4 font-semibold ${tab === 'upload' ? 'active text-purple-600' : 'text-gray-600 hover:text-purple-600'}`}>
-                                    📤 Upload
+                            {/* M3 Navigation Tabs */}
+                            <nav className="m3-tabs">
+                                <button onClick={() => setTab('upload')} className={`m3-tab ${tab === 'upload' ? 'active' : ''}`}>
+                                    <span className="material-icons-round m3-tab-icon">upload_file</span>
+                                    <span className="m3-tab-label">Upload</span>
                                 </button>
-                                <button onClick={() => setTab('settings')} className={`tab-button px-6 py-4 font-semibold ${tab === 'settings' ? 'active text-purple-600' : 'text-gray-600 hover:text-purple-600'}`}>
-                                    ⚙️ Settings
+                                <button onClick={() => setTab('settings')} className={`m3-tab ${tab === 'settings' ? 'active' : ''}`}>
+                                    <span className="material-icons-round m3-tab-icon">tune</span>
+                                    <span className="m3-tab-label">Settings</span>
                                 </button>
-                                <button onClick={() => setTab('teams')} disabled={!matches.length} className={`tab-button px-6 py-4 font-semibold ${tab === 'teams' ? 'active text-purple-600' : 'text-gray-600 hover:text-purple-600'} disabled:opacity-50 disabled:cursor-not-allowed`}>
-                                    👥 Teams {matches.length > 0 && `(${matches.length})`}
+                                <button onClick={() => setTab('teams')} disabled={!matches.length} className={`m3-tab ${tab === 'teams' ? 'active' : ''}`} style={!matches.length ? { opacity: 0.38 } : {}}>
+                                    <span className="material-icons-round m3-tab-icon">groups</span>
+                                    <span className="m3-tab-label">Teams {matches.length > 0 && `(${matches.length})`}</span>
                                 </button>
-                                <button onClick={() => setTab('mats')} disabled={!matches.length} className={`tab-button px-6 py-4 font-semibold ${tab === 'mats' ? 'active text-purple-600' : 'text-gray-600 hover:text-purple-600'} disabled:opacity-50 disabled:cursor-not-allowed`}>
-                                    🥋 Mats
+                                <button onClick={() => setTab('mats')} disabled={!matches.length} className={`m3-tab ${tab === 'mats' ? 'active' : ''}`} style={!matches.length ? { opacity: 0.38 } : {}}>
+                                    <span className="material-icons-round m3-tab-icon">sports_martial_arts</span>
+                                    <span className="m3-tab-label">Mats</span>
                                 </button>
-                            </div>
-                        </div>
+                            </nav>
+                        </header>
                         
                         {/* Content */}
-                        <div className="glass rounded-2xl shadow-xl p-6 animate-fade-in">
+                        <main className="p-4 animate-fade-in">
                             {tab === 'upload' && (
-                                <div className="space-y-6">
-                                    <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-l-4 border-purple-500 rounded-lg p-4">
-                                        <p className="text-sm font-medium text-gray-700">
+                                <div className="space-y-4">
+                                    <div className="m3-card m3-card-outlined p-4" style={{ borderLeftWidth: 4, borderLeftColor: 'var(--md-sys-color-primary)' }}>
+                                        <p className="body-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
                                             <strong>Format:</strong> FirstName, LastName, Weight, DOB(MM/DD/YYYY), Experience, Skill (1-5)
                                         </p>
                                     </div>
                                     
                                     <div className="flex justify-end">
-                                        <button onClick={() => setShowPasteDialog(true)} className="btn-primary text-white px-6 py-3 rounded-lg font-semibold shadow-lg">
-                                            📋 Paste Data
+                                        <button onClick={() => setShowPasteDialog(true)} className="m3-btn m3-btn-filled">
+                                            <span className="material-icons-round" style={{ fontSize: 18 }}>content_paste</span>
+                                            Paste Data
                                         </button>
                                     </div>
                                     
                                     {['t1', 't2', 't3'].map((tk) => (
-                                        <div key={tk} className="border-2 border-gray-200 rounded-xl p-6 hover:border-purple-400 transition-all">
-                                            <div className="flex items-center justify-between mb-4">
-                                                <div className="flex items-center gap-3 flex-1">
-                                                    <input 
-                                                        type="text" 
-                                                        value={names[tk]} 
-                                                        onChange={(e) => handleTeamNameChange(tk, e.target.value)} 
-                                                        className="text-xl font-bold border-b-2 border-purple-300 px-2 py-1 outline-none focus:border-purple-500 transition-colors flex-1"
-                                                        placeholder="Team Name"
-                                                    />
-                                                    <div className="flex flex-col gap-1">
-                                                        <label className="text-xs text-gray-500">Abbrev</label>
+                                        <div key={tk} className="m3-card m3-card-outlined p-6">
+                                            <div className="flex items-center justify-between mb-4 gap-4 flex-wrap">
+                                                <div className="flex items-center gap-3 flex-1 min-w-[200px]">
+                                                    <div className="m3-text-field flex-1">
+                                                        <label>Team Name</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={names[tk]} 
+                                                            onChange={(e) => handleTeamNameChange(tk, e.target.value)} 
+                                                        />
+                                                    </div>
+                                                    <div className="m3-text-field" style={{ width: 80 }}>
+                                                        <label>Abbrev</label>
                                                         <input 
                                                             type="text" 
                                                             value={abbrevs[tk]} 
                                                             onChange={(e) => setAbbrevs(p => ({ ...p, [tk]: e.target.value.substring(0, 3).toUpperCase() }))} 
-                                                            className="text-sm font-bold border-2 border-gray-300 rounded px-2 py-1 outline-none focus:border-purple-500 transition-colors w-16 text-center"
-                                                            placeholder="T1"
                                                             maxLength="3"
+                                                            style={{ textAlign: 'center' }}
                                                         />
                                                     </div>
-                                                    <div className="flex flex-col gap-1">
-                                                        <label className="text-xs text-gray-500">Color</label>
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <span className="label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Color</span>
                                                         <input 
                                                             type="color" 
                                                             value={colors[tk]} 
                                                             onChange={(e) => setColors(p => ({ ...p, [tk]: e.target.value }))} 
-                                                            className="w-8 h-8 rounded cursor-pointer border-2 border-gray-300 hover:border-purple-400 transition-colors"
-                                                            style={{ padding: '2px' }}
                                                         />
                                                     </div>
                                                 </div>
-                                                <span className="text-3xl font-bold text-gray-400 ml-3">{rosters[tk].length}</span>
+                                                <div className="display-small" style={{ color: 'var(--md-sys-color-outline)' }}>{rosters[tk].length}</div>
                                             </div>
-                                            <label className="block">
-                                                <div className="flex items-center justify-center px-6 py-4 bg-gradient-to-r from-purple-50 to-blue-50 text-purple-700 rounded-xl border-2 border-dashed border-purple-300 hover:border-purple-500 hover:bg-purple-100 cursor-pointer transition-all">
-                                                    <span className="text-lg font-semibold">📁 Upload CSV/Excel</span>
+                                            <label className="block cursor-pointer">
+                                                <div 
+                                                    className="flex items-center justify-center gap-3 px-6 py-6 rounded-xl border-2 border-dashed transition-all"
+                                                    style={{ 
+                                                        borderColor: 'var(--md-sys-color-outline-variant)',
+                                                        backgroundColor: 'var(--md-sys-color-surface-container-low)'
+                                                    }}
+                                                >
+                                                    <span className="material-icons-round" style={{ fontSize: 32, color: 'var(--md-sys-color-primary)' }}>cloud_upload</span>
+                                                    <span className="title-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Upload CSV/Excel</span>
                                                 </div>
                                                 <input type="file" accept=".csv,.xlsx,.xls" onChange={(e) => loadFile(tk, e)} className="hidden" />
                                             </label>
                                             {rosters[tk].length > 0 && (
-                                                <div className="mt-3 p-3 bg-green-50 rounded-lg text-sm text-green-800 font-medium animate-slide-in">
-                                                    ✓ {rosters[tk].length} wrestlers loaded
+                                                <div className="mt-3 p-3 shape-small flex items-center gap-2" style={{ backgroundColor: 'var(--md-sys-color-success-container)' }}>
+                                                    <span className="material-icons-round" style={{ color: 'var(--md-sys-color-on-success-container)' }}>check_circle</span>
+                                                    <span className="label-large" style={{ color: 'var(--md-sys-color-on-success-container)' }}>{rosters[tk].length} wrestlers loaded</span>
                                                 </div>
                                             )}
                                         </div>
@@ -1340,298 +1579,228 @@
                                     <button 
                                         onClick={generate} 
                                         disabled={!total} 
-                                        className="w-full btn-primary text-white py-4 rounded-xl font-bold text-lg shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                                        className="m3-btn m3-btn-filled w-full"
+                                        style={{ height: 56 }}
                                     >
-                                        🎯 Generate Matchups
+                                        <span className="material-icons-round">auto_awesome</span>
+                                        <span className="title-medium">Generate Matchups</span>
                                     </button>
                                 </div>
                             )}
                             
                             {tab === 'settings' && (
-                                <div className="space-y-8">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-2">
-                                            <label className="block text-sm font-semibold text-gray-700">Max Weight Difference (%)</label>
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="m3-text-field">
+                                            <label>Max Weight Difference (%)</label>
                                             <input 
                                                 type="number" 
                                                 value={settings.maxWt} 
                                                 onChange={(e) => setSettings(p => ({ ...p, maxWt: parseFloat(e.target.value) }))} 
-                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="block text-sm font-semibold text-gray-700">Preferred Weight Difference (%)</label>
+                                        <div className="m3-text-field">
+                                            <label>Preferred Weight Difference (%)</label>
                                             <input 
                                                 type="number" 
                                                 value={settings.preferredWt} 
                                                 onChange={(e) => setSettings(p => ({ ...p, preferredWt: parseFloat(e.target.value) }))} 
-                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="block text-sm font-semibold text-gray-700">Max Age Difference (years)</label>
+                                        <div className="m3-text-field">
+                                            <label>Max Age Difference (years)</label>
                                             <input 
                                                 type="number" 
                                                 value={settings.maxAge} 
                                                 onChange={(e) => setSettings(p => ({ ...p, maxAge: parseInt(e.target.value) }))} 
-                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="block text-sm font-semibold text-gray-700">Max Skill Difference</label>
+                                        <div className="m3-text-field">
+                                            <label>Max Skill Difference</label>
                                             <input 
                                                 type="number" 
                                                 value={settings.maxSkill} 
                                                 onChange={(e) => setSettings(p => ({ ...p, maxSkill: parseInt(e.target.value) }))} 
-                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="block text-sm font-semibold text-gray-700">Min Matches per Wrestler</label>
+                                        <div className="m3-text-field">
+                                            <label>Min Matches per Wrestler</label>
                                             <input 
                                                 type="number" 
                                                 value={settings.minMatchesPerWrestler} 
                                                 onChange={(e) => setSettings(p => ({ ...p, minMatchesPerWrestler: parseInt(e.target.value) }))} 
-                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
                                             />
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="block text-sm font-semibold text-gray-700">Max Matches per Mat</label>
+                                        <div className="m3-text-field">
+                                            <label>Max Matches per Mat</label>
                                             <input 
                                                 type="number" 
                                                 value={settings.maxPerMat} 
                                                 onChange={(e) => setSettings(p => ({ ...p, maxPerMat: parseInt(e.target.value) }))} 
-                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
                                             />
-                                            <p className="text-xs text-gray-500 mt-1">Recommended: 25 (max 28-30)</p>
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="block text-sm font-semibold text-gray-700">Min Rest Between Bouts</label>
+                                        <div className="m3-text-field md:col-span-2">
+                                            <label>Min Rest Between Bouts (matches)</label>
                                             <input 
                                                 type="number" 
                                                 value={settings.minRestBetweenBouts} 
                                                 onChange={(e) => setSettings(p => ({ ...p, minRestBetweenBouts: parseInt(e.target.value) }))} 
-                                                className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
                                             />
-                                            <p className="text-xs text-gray-500 mt-1">Number of matches between bouts for adequate rest</p>
                                         </div>
                                     </div>
                                     
-                                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 border-l-4 border-purple-500 rounded-xl p-6">
-                                        <h3 className="font-bold text-lg mb-4 text-gray-800">📋 Current Rules Summary</h3>
-                                        <ul className="space-y-2 text-sm text-gray-700">
-                                            <li className="flex items-center gap-2">
-                                                <span className="text-purple-600">⚖️</span> Weight within {settings.maxWt}% (prefer {settings.preferredWt}%)
-                                            </li>
-                                            <li className="flex items-center gap-2">
-                                                <span className="text-purple-600">🎂</span> Age within {settings.maxAge} year(s)
-                                            </li>
-                                            <li className="flex items-center gap-2">
-                                                <span className="text-purple-600">🥋</span> Skill within {settings.maxSkill} points
-                                            </li>
-                                            <li className="flex items-center gap-2">
-                                                <span className="text-purple-600">🎯</span> Each wrestler gets {settings.minMatchesPerWrestler}-3 matches
-                                            </li>
-                                            <li className="flex items-center gap-2">
-                                                <span className="text-purple-600">📊</span> Maximum {settings.maxPerMat} matches per mat
-                                            </li>
-                                            <li className="flex items-center gap-2">
-                                                <span className="text-purple-600">⏱️</span> Minimum {settings.minRestBetweenBouts} matches rest between bouts
-                                            </li>
-                                        </ul>
+                                    <div className="m3-card m3-card-filled p-6" style={{ backgroundColor: 'var(--md-sys-color-primary-container)' }}>
+                                        <h3 className="title-large mb-4" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
+                                            <span className="material-icons-round" style={{ verticalAlign: 'middle', marginRight: 8 }}>rule</span>
+                                            Current Rules Summary
+                                        </h3>
+                                        <div className="space-y-2" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
+                                            <p className="body-large">⚖️ Weight within {settings.maxWt}% (prefer {settings.preferredWt}%)</p>
+                                            <p className="body-large">🎂 Age within {settings.maxAge} year(s)</p>
+                                            <p className="body-large">🥋 Skill within {settings.maxSkill} points</p>
+                                            <p className="body-large">🎯 Each wrestler gets {settings.minMatchesPerWrestler}-3 matches</p>
+                                            <p className="body-large">📊 Maximum {settings.maxPerMat} matches per mat</p>
+                                            <p className="body-large">⏱️ Minimum {settings.minRestBetweenBouts} matches rest between bouts</p>
+                                        </div>
                                     </div>
                                 </div>
                             )}
                             
                             {tab === 'teams' && matches.length > 0 && (
                                 <div>
-                                    <div className="flex gap-2 border-b mb-6 flex-wrap">
+                                    {/* Team Selector Chips */}
+                                    <div className="flex gap-2 mb-4 flex-wrap">
                                         {['t1', 't2', 't3'].map(tk => rosters[tk].length > 0 && (
                                             <button 
                                                 key={tk} 
                                                 onClick={() => setTeamView(tk)} 
-                                                className={`px-6 py-3 font-semibold rounded-t-lg transition-all ${teamView === tk ? 'border-b-4' : 'hover:bg-gray-100'}`}
-                                                style={teamView === tk ? { borderColor: colors[tk], color: colors[tk] } : {}}
+                                                className={`m3-chip ${teamView === tk ? 'm3-chip-filter selected' : 'm3-chip-filter'}`}
+                                                style={teamView === tk ? { backgroundColor: colors[tk] + '30', borderColor: colors[tk], border: '1px solid' } : {}}
                                             >
-                                                <span className="font-bold">{abbrevs[tk]}</span> - {names[tk]} ({rosters[tk].length})
+                                                <span style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors[tk] }}></span>
+                                                {abbrevs[tk]} - {names[tk]} ({rosters[tk].length})
                                             </button>
                                         ))}
                                     </div>
                                     
-                                    <div className="mb-6 flex gap-4 flex-wrap">
-                                        <input
-                                            type="text"
-                                            placeholder="🔍 Search wrestlers..."
-                                            value={filterText}
-                                            onChange={(e) => setFilterText(e.target.value)}
-                                            className="flex-1 border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
-                                        />
-                                        <select
-                                            value={sortBy}
-                                            onChange={(e) => setSortBy(e.target.value)}
-                                            className="border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none transition-all"
-                                        >
-                                            <option value="name">Sort by Name</option>
-                                            <option value="weight">Sort by Weight</option>
-                                            <option value="skill">Sort by Skill</option>
-                                            <option value="matches">Sort by Matches</option>
-                                        </select>
+                                    {/* Search and Sort */}
+                                    <div className="flex gap-4 mb-4 flex-wrap">
+                                        <div className="m3-text-field flex-1" style={{ minWidth: 200 }}>
+                                            <label>Search wrestlers</label>
+                                            <input
+                                                type="text"
+                                                value={filterText}
+                                                onChange={(e) => setFilterText(e.target.value)}
+                                            />
+                                        </div>
+                                        <div className="m3-text-field" style={{ width: 180 }}>
+                                            <label>Sort by</label>
+                                            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+                                                <option value="name">Name</option>
+                                                <option value="weight">Weight</option>
+                                                <option value="skill">Skill</option>
+                                                <option value="matches">Matches</option>
+                                            </select>
+                                        </div>
                                     </div>
                                     
-                                    <div className="grid grid-cols-12 gap-6">
-                                        <div className="col-span-12 lg:col-span-5 space-y-1 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 250px)' }}>
+                                    <div className="grid grid-cols-12 gap-4">
+                                        {/* Wrestler List */}
+                                        <div className="col-span-12 lg:col-span-5 space-y-1 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 320px)' }}>
                                             {getFilteredRoster(teamView).map(w => {
                                                 const ms = getMatches(w);
                                                 const c = getColor(w.Team);
                                                 return (
                                                     <div 
                                                         key={w.Name} 
-                                                        className={`wrestler-card border rounded p-1.5 cursor-pointer ${selected?.Name === w.Name ? 'ring-2 ring-purple-400 shadow-lg' : 'hover:shadow-md'}`}
-                                                        style={{ borderLeftColor: c, borderLeftWidth: '3px' }}
+                                                        className={`m3-card m3-card-outlined wrestler-card p-3 cursor-pointer`}
+                                                        style={{ 
+                                                            borderLeftWidth: 4, 
+                                                            borderLeftColor: c,
+                                                            backgroundColor: selected?.Name === w.Name ? 'var(--md-sys-color-secondary-container)' : 'var(--md-sys-color-surface)'
+                                                        }}
                                                     >
-                                                        <div className="flex justify-between items-center mb-0.5">
+                                                        <div className="flex justify-between items-center">
                                                             <div className="flex-1" onClick={() => setSelected(w)}>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="text-xs font-bold px-1 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="label-medium px-2 py-1 shape-small" style={{ backgroundColor: c, color: 'white' }}>
                                                                         {getAbbrev(w.Team)}
                                                                     </span>
-                                                                    <div className="font-bold text-xs" style={{ color: c }}>{w.Name}</div>
-                                                                    <span className="text-xs text-gray-500">{w.Weight}lb·{w.Age}y·S{w.Skill}</span>
+                                                                    <span className="title-small" style={{ color: c }}>{w.Name}</span>
+                                                                    <span className="body-small" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb · {w.Age}y · S{w.Skill}</span>
                                                                 </div>
                                                             </div>
-                                                            <div className="flex items-center gap-1.5">
-                                                                <span className="text-base font-bold" style={{ color: c }}>{ms.length}</span>
-                                                                <button
-                                                                    onClick={(e) => { e.stopPropagation(); scratchWrestler(w); }}
-                                                                    className="text-red-600 hover:text-red-800 text-xs px-1 rounded hover:bg-red-50"
-                                                                    title="Scratch"
-                                                                >
-                                                                    ✕
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="title-large" style={{ color: c }}>{ms.length}</span>
+                                                                <button onClick={(e) => { e.stopPropagation(); scratchWrestler(w); }} className="m3-icon-btn" style={{ width: 32, height: 32 }}>
+                                                                    <span className="material-icons-round" style={{ fontSize: 18, color: 'var(--md-sys-color-error)' }}>close</span>
                                                                 </button>
                                                             </div>
                                                         </div>
-                                                        {ms.map(m => {
-                                                            const opp = m.w1.Name === w.Name ? m.w2 : m.w1;
-                                                            const oc = getColor(opp.Team);
-                                                            return (
-                                                                <div 
-                                                                    key={m.num} 
-                                                                    className="text-xs p-1 rounded mb-0.5 hover:bg-gray-50 flex items-center justify-between"
-                                                                    style={{ backgroundColor: oc + '15', borderLeft: `2px solid ${oc}` }}
-                                                                >
-                                                                    <div className="flex items-center gap-1 flex-1">
-                                                                        <span className="font-mono font-semibold text-xs">#{m.num}</span>
-                                                                        <span className="px-1 py-0.5 rounded text-white text-xs" style={{ backgroundColor: oc }}>{getAbbrev(opp.Team)}</span>
-                                                                        <span style={{ color: oc }} className="text-xs truncate">{opp.Name}</span>
-                                                                    </div>
-                                                                    <div className="flex items-center gap-0.5">
-                                                                        <span className={`px-1 py-0.5 rounded text-xs ${m.wtPct <= 5 ? 'bg-green-100 text-green-800' : m.wtPct <= 10 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                                                                            {m.wtPct.toFixed(0)}%
-                                                                        </span>
-                                                                        <span className={`px-1 py-0.5 rounded text-xs ${m.ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                                            A{m.ageDiff}
-                                                                        </span>
-                                                                        <span className={`px-1 py-0.5 rounded text-xs ${m.skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                                            S{m.skillDiff}
-                                                                        </span>
-                                                                        <button 
-                                                                            onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} 
-                                                                            className="text-red-600 hover:text-red-800 font-bold px-1 rounded hover:bg-red-100 text-xs"
-                                                                        >
-                                                                            ✕
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        
-                                        <div className="col-span-12 lg:col-span-7">
-                                            {selected ? (
-                                                <div className="space-y-4">
-                                                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-xl border-l-4 border-purple-500">
-                                                        <h3 className="font-bold text-lg">💪 Suggested Opponents for {selected.Name}</h3>
-                                                        <p className="text-sm text-gray-600">Click to add match</p>
-                                                    </div>
-                                                    
-                                                    {getMatches(selected).length > 0 && (
-                                                        <div className="p-4 bg-blue-50 rounded-xl border-l-4 border-blue-500">
-                                                            <h4 className="font-semibold mb-3">📋 Current Matchups ({getMatches(selected).length})</h4>
-                                                            <div className="space-y-3">
-                                                                {getMatches(selected).map(m => {
-                                                                    const opp = m.w1.Name === selected.Name ? m.w2 : m.w1;
+                                                        {ms.length > 0 && (
+                                                            <div className="mt-2 space-y-1">
+                                                                {ms.map(m => {
+                                                                    const opp = m.w1.Name === w.Name ? m.w2 : m.w1;
                                                                     const oc = getColor(opp.Team);
                                                                     return (
-                                                                        <div key={m.num} className="bg-white border-2 rounded-xl p-3 match-card">
-                                                                            <div className="flex justify-between items-start mb-2">
-                                                                                <div>
-                                                                                    <div className="flex items-center gap-2 mb-1">
-                                                                                        <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: oc, color: 'white' }}>
-                                                                                            {getAbbrev(opp.Team)}
-                                                                                        </span>
-                                                                                        <div className="font-bold text-lg" style={{ color: oc }}>
-                                                                                            {opp.Name}
-                                                                                        </div>
-                                                                                    </div>
-                                                                                    <div className="text-sm text-gray-600 mt-1">
-                                                                                        {opp.Team} • {opp.Weight} lbs • Age {opp.Age} • Skill {opp.Skill}
-                                                                                    </div>
-                                                                                </div>
-                                                                                <div className="font-mono text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-lg">
-                                                                                    #{m.num}
-                                                                                </div>
+                                                                        <div key={m.num} className="flex items-center justify-between p-2 shape-small" style={{ backgroundColor: oc + '15' }}>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="label-small" style={{ color: 'var(--md-sys-color-outline)' }}>#{m.num}</span>
+                                                                                <span className="label-small px-1 shape-extra-small" style={{ backgroundColor: oc, color: 'white' }}>{getAbbrev(opp.Team)}</span>
+                                                                                <span className="body-small" style={{ color: oc }}>{opp.Name}</span>
                                                                             </div>
-                                                                            <div className="grid grid-cols-4 gap-2 mt-3">
-                                                                                <div className={`p-2 rounded-lg text-center text-xs font-semibold ${m.wtPct <= 5 ? 'bg-green-100 text-green-800' : m.wtPct <= 10 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>
-                                                                                    Wt: {m.wtPct.toFixed(1)}%
-                                                                                </div>
-                                                                                <div className={`p-2 rounded-lg text-center text-xs font-semibold ${m.ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                                                    Age: {m.ageDiff}
-                                                                                </div>
-                                                                                <div className={`p-2 rounded-lg text-center text-xs font-semibold ${m.skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                                                    Skill: {m.skillDiff}
-                                                                                </div>
-                                                                                <div className={`p-2 rounded-lg text-center text-xs font-semibold ${Math.abs(selected.Exp - opp.Exp) <= 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                                                    Exp: {Math.abs(selected.Exp - opp.Exp)}
-                                                                                </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <span className={`label-small px-2 py-0.5 shape-full`} style={{ backgroundColor: m.wtPct <= 5 ? 'var(--md-sys-color-success-container)' : m.wtPct <= 10 ? 'var(--md-sys-color-warning-container)' : 'var(--md-sys-color-error-container)' }}>
+                                                                                    {m.wtPct.toFixed(0)}%
+                                                                                </span>
+                                                                                <button onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} className="m3-icon-btn" style={{ width: 24, height: 24 }}>
+                                                                                    <span className="material-icons-round" style={{ fontSize: 16, color: 'var(--md-sys-color-error)' }}>close</span>
+                                                                                </button>
                                                                             </div>
                                                                         </div>
                                                                     );
                                                                 })}
                                                             </div>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        
+                                        {/* Suggestions Panel */}
+                                        <div className="col-span-12 lg:col-span-7">
+                                            {selected ? (
+                                                <div className="space-y-4">
+                                                    <div className="m3-card m3-card-filled p-4" style={{ backgroundColor: 'var(--md-sys-color-primary-container)' }}>
+                                                        <h3 className="title-medium" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
+                                                            <span className="material-icons-round" style={{ verticalAlign: 'middle', marginRight: 8 }}>person_search</span>
+                                                            Suggested Opponents for {selected.Name}
+                                                        </h3>
+                                                        <p className="body-small mt-1" style={{ color: 'var(--md-sys-color-on-primary-container)', opacity: 0.8 }}>Click to add match</p>
+                                                    </div>
                                                     
-                                                    <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                                    <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
                                                         {getSuggestions(selected).map(({ w, wtPct, skillDiff }) => {
                                                             const c = getColor(w.Team);
                                                             return (
                                                                 <div 
                                                                     key={w.Name} 
                                                                     onClick={() => addMatch(selected, w)} 
-                                                                    className="border-2 rounded-xl p-4 hover:border-purple-400 hover:shadow-lg cursor-pointer transition-all match-card"
+                                                                    className="m3-card m3-card-outlined p-4 cursor-pointer match-card"
                                                                 >
                                                                     <div className="flex justify-between items-start">
                                                                         <div>
                                                                             <div className="flex items-center gap-2 mb-1">
-                                                                                <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>
-                                                                                    {getAbbrev(w.Team)}
-                                                                                </span>
-                                                                                <div className="font-bold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                                                <span className="label-medium px-2 py-1 shape-small" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
+                                                                                <span className="title-medium" style={{ color: c }}>{w.Name}</span>
                                                                             </div>
-                                                                            <div className="text-sm text-gray-600">{w.Team}</div>
-                                                                            <div className="text-xs text-gray-500 mt-1">
-                                                                                {w.Weight} lbs • Age {w.Age} • Skill {w.Skill}
-                                                                            </div>
+                                                                            <p className="body-small" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight} lbs · Age {w.Age} · Skill {w.Skill}</p>
                                                                         </div>
                                                                         <div className="flex gap-2">
-                                                                            <span className={`text-xs px-3 py-1 rounded-lg font-semibold ${wtPct <= 5 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                            <span className={`label-medium px-3 py-1 shape-full`} style={{ backgroundColor: wtPct <= 5 ? 'var(--md-sys-color-success-container)' : 'var(--md-sys-color-warning-container)' }}>
                                                                                 Wt: {wtPct.toFixed(1)}%
                                                                             </span>
-                                                                            <span className={`text-xs px-3 py-1 rounded-lg font-semibold ${skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                                                                            <span className={`label-medium px-3 py-1 shape-full`} style={{ backgroundColor: skillDiff === 0 ? 'var(--md-sys-color-success-container)' : 'var(--md-sys-color-warning-container)' }}>
                                                                                 Skill: {skillDiff}
                                                                             </span>
                                                                         </div>
@@ -1642,10 +1811,10 @@
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <div className="h-full flex items-center justify-center text-gray-400">
+                                                <div className="h-full flex items-center justify-center" style={{ minHeight: 300, color: 'var(--md-sys-color-outline)' }}>
                                                     <div className="text-center">
-                                                        <div className="text-6xl mb-4">👈</div>
-                                                        <p className="text-lg">Select a wrestler to manage matchups</p>
+                                                        <span className="material-icons-round" style={{ fontSize: 64 }}>touch_app</span>
+                                                        <p className="title-medium mt-2">Select a wrestler to manage matchups</p>
                                                     </div>
                                                 </div>
                                             )}
@@ -1656,17 +1825,21 @@
                             
                             {tab === 'mats' && matches.length > 0 && (
                                 <div>
-                                    <div className="mb-2 p-1.5 bg-orange-50 border-l-2 border-orange-500 rounded text-xs text-orange-800">
-                                        <strong>⚠️</strong> Orange = wrestlers within {settings.minRestBetweenBouts} matches
+                                    <div className="m3-card m3-card-outlined p-3 mb-4" style={{ borderLeftWidth: 4, borderLeftColor: 'var(--md-sys-color-warning)' }}>
+                                        <div className="flex items-center gap-2">
+                                            <span className="material-icons-round" style={{ color: 'var(--md-sys-color-warning)' }}>warning</span>
+                                            <span className="body-medium">Orange highlight = wrestlers within {settings.minRestBetweenBouts} matches of each other</span>
+                                        </div>
                                     </div>
                                     
-                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-2 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 280px)' }}>
                                         {[1, 2, 3].map(mat => {
                                             const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
                                             return (
                                                 <div 
                                                     key={mat} 
-                                                    className="border border-gray-300 rounded overflow-hidden"
+                                                    className="m3-card m3-card-outlined overflow-hidden"
+                                                    style={{ padding: 0 }}
                                                     onDragOver={(e) => e.preventDefault()} 
                                                     onDrop={(e) => {
                                                         e.preventDefault();
@@ -1679,11 +1852,14 @@
                                                         }
                                                     }}
                                                 >
-                                                    <div className="gradient-bg text-white p-1.5 font-bold flex justify-between sticky top-0 z-10 text-xs">
-                                                        <span>🥋 Mat {mat}</span>
-                                                        <span>{ms.length}</span>
+                                                    <div className="p-3 flex justify-between items-center" style={{ backgroundColor: 'var(--md-sys-color-primary)', color: 'var(--md-sys-color-on-primary)' }}>
+                                                        <span className="title-medium">
+                                                            <span className="material-icons-round" style={{ verticalAlign: 'middle', marginRight: 8, fontSize: 20 }}>sports_martial_arts</span>
+                                                            Mat {mat}
+                                                        </span>
+                                                        <span className="label-large">{ms.length}</span>
                                                     </div>
-                                                    <div className="p-1 space-y-0.5 min-h-[100px] bg-gray-50">
+                                                    <div className="p-2 space-y-1 min-h-[100px]" style={{ backgroundColor: 'var(--md-sys-color-surface-container-low)' }}>
                                                         {ms.map((m, index) => {
                                                             const c1 = getColor(m.w1.Team);
                                                             const c2 = getColor(m.w2.Team);
@@ -1695,79 +1871,58 @@
                                                                 <div 
                                                                     key={m.num} 
                                                                     draggable 
-                                                                    onDragStart={() => { 
-                                                                        setDragged(m); 
-                                                                        setDraggedFromMat(mat);
-                                                                    }} 
-                                                                    onDragEnd={() => {
-                                                                        setDragged(null);
-                                                                        setDraggedFromMat(null);
-                                                                    }}
-                                                                    onDragOver={(e) => {
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation();
-                                                                    }}
+                                                                    onDragStart={() => { setDragged(m); setDraggedFromMat(mat); }} 
+                                                                    onDragEnd={() => { setDragged(null); setDraggedFromMat(null); }}
+                                                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                                                     onDrop={(e) => {
                                                                         e.preventDefault();
                                                                         e.stopPropagation();
                                                                         if (dragged) {
                                                                             if (draggedFromMat !== mat) {
-                                                                                // Cross-mat drag - move to this mat
                                                                                 moveMat(dragged.num, mat);
                                                                             } else if (dragged.num !== m.num) {
-                                                                                // Same mat - reorder
                                                                                 const fromIndex = ms.findIndex(x => x.num === dragged.num);
                                                                                 const toIndex = index;
                                                                                 reorderWithinMat(mat, fromIndex, toIndex);
                                                                             }
                                                                         }
                                                                     }}
-                                                                    className={`match-card border rounded p-1 cursor-move bg-white ${
-                                                                        dragged?.num === m.num ? 'dragging opacity-50' : ''
-                                                                    } ${anyNeedsRest ? 'ring-1 ring-orange-400 bg-orange-50' : 'hover:shadow-sm'}`}
+                                                                    className={`m3-card match-card p-2 cursor-grab ${dragged?.num === m.num ? 'dragging' : ''}`}
+                                                                    style={{ 
+                                                                        backgroundColor: anyNeedsRest ? 'var(--md-sys-color-warning-container)' : 'var(--md-sys-color-surface)',
+                                                                        border: anyNeedsRest ? '1px solid var(--md-sys-color-warning)' : '1px solid var(--md-sys-color-outline-variant)'
+                                                                    }}
                                                                 >
-                                                                    <div className="flex items-center justify-between mb-0.5">
-                                                                        <div className="flex items-center gap-0.5">
-                                                                            <span className="text-gray-400 text-xs">⋮⋮</span>
-                                                                            <span className="bg-gray-200 px-1 py-0.5 rounded text-xs font-bold">#{m.num}</span>
+                                                                    <div className="flex items-center justify-between mb-1">
+                                                                        <div className="flex items-center gap-1">
+                                                                            <span className="material-icons-round" style={{ fontSize: 16, color: 'var(--md-sys-color-outline)' }}>drag_indicator</span>
+                                                                            <span className="label-medium px-2 py-0.5 shape-small" style={{ backgroundColor: 'var(--md-sys-color-surface-container-highest)' }}>#{m.num}</span>
                                                                         </div>
-                                                                        {anyNeedsRest && (
-                                                                            <span className="text-orange-600 text-xs">⚠️</span>
-                                                                        )}
+                                                                        {anyNeedsRest && <span className="material-icons-round" style={{ fontSize: 16, color: 'var(--md-sys-color-warning)' }}>warning</span>}
                                                                     </div>
-                                                                    <div className="flex gap-0.5 text-xs">
-                                                                        <div 
-                                                                            className={`flex-1 p-0.5 rounded border-l ${w1NeedsRest ? 'ring-1 ring-orange-400' : ''}`}
-                                                                            style={{ backgroundColor: c1 + '20', borderLeftColor: c1, borderLeftWidth: '2px' }}
-                                                                        >
-                                                                            <div className="flex items-center gap-0.5">
-                                                                                <span className="text-xs font-bold px-1 py-0.5 rounded" style={{ backgroundColor: c1, color: 'white' }}>
-                                                                                    {getAbbrev(m.w1.Team)}
-                                                                                </span>
-                                                                                <span className="font-semibold text-xs truncate" style={{ color: c1 }}>{m.w1.Name.split(' ')[1] || m.w1.Name}</span>
+                                                                    <div className="flex gap-1">
+                                                                        <div className="flex-1 p-1 shape-small" style={{ backgroundColor: c1 + '20', borderLeft: `3px solid ${c1}` }}>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <span className="label-small px-1 shape-extra-small" style={{ backgroundColor: c1, color: 'white' }}>{getAbbrev(m.w1.Team)}</span>
+                                                                                <span className="label-small" style={{ color: c1 }}>{m.w1.Name.split(' ')[1] || m.w1.Name}</span>
                                                                             </div>
-                                                                            <div className="text-gray-600 text-xs">{m.w1.Weight}lb</div>
+                                                                            <div className="label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{m.w1.Weight}lb</div>
                                                                         </div>
-                                                                        <div 
-                                                                            className={`flex-1 p-0.5 rounded border-l ${w2NeedsRest ? 'ring-1 ring-orange-400' : ''}`}
-                                                                            style={{ backgroundColor: c2 + '20', borderLeftColor: c2, borderLeftWidth: '2px' }}
-                                                                        >
-                                                                            <div className="flex items-center gap-0.5">
-                                                                                <span className="text-xs font-bold px-1 py-0.5 rounded" style={{ backgroundColor: c2, color: 'white' }}>
-                                                                                    {getAbbrev(m.w2.Team)}
-                                                                                </span>
-                                                                                <span className="font-semibold text-xs truncate" style={{ color: c2 }}>{m.w2.Name.split(' ')[1] || m.w2.Name}</span>
+                                                                        <div className="flex-1 p-1 shape-small" style={{ backgroundColor: c2 + '20', borderLeft: `3px solid ${c2}` }}>
+                                                                            <div className="flex items-center gap-1">
+                                                                                <span className="label-small px-1 shape-extra-small" style={{ backgroundColor: c2, color: 'white' }}>{getAbbrev(m.w2.Team)}</span>
+                                                                                <span className="label-small" style={{ color: c2 }}>{m.w2.Name.split(' ')[1] || m.w2.Name}</span>
                                                                             </div>
-                                                                            <div className="text-gray-600 text-xs">{m.w2.Weight}lb</div>
+                                                                            <div className="label-small" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{m.w2.Weight}lb</div>
                                                                         </div>
                                                                     </div>
                                                                 </div>
                                                             );
                                                         })}
                                                         {ms.length === 0 && (
-                                                            <div className="text-center text-gray-400 py-4 text-xs">
-                                                                <div className="text-xl">📭</div>
-                                                                <p className="text-xs">Drag here</p>
+                                                            <div className="text-center py-8" style={{ color: 'var(--md-sys-color-outline)' }}>
+                                                                <span className="material-icons-round" style={{ fontSize: 32 }}>inbox</span>
+                                                                <p className="body-small mt-1">Drag matches here</p>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1777,193 +1932,171 @@
                                     </div>
                                 </div>
                             )}
-                        </div>
+                        </main>
                     </div>
                     
-                    {/* Modals */}
-                    <Modal isOpen={showSaveDialog} onClose={() => setShowSaveDialog(false)} title="💾 Save Tournament" size="sm">
-                        <input 
-                            type="text" 
-                            value={saveName} 
-                            onChange={(e) => setSaveName(e.target.value)} 
-                            placeholder="Tournament name" 
-                            className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 mb-4 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none" 
-                            autoFocus 
-                            onKeyPress={(e) => e.key === 'Enter' && saveNew()}
-                        />
-                        <div className="flex gap-3">
-                            <button onClick={saveNew} className="flex-1 btn-primary text-white px-6 py-3 rounded-lg font-semibold shadow-lg">Save</button>
-                            <button onClick={() => { setShowSaveDialog(false); setSaveName(''); }} className="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-400 transition-all">Cancel</button>
+                    {/* Dialogs */}
+                    <Dialog isOpen={showSaveDialog} onClose={() => setShowSaveDialog(false)} title="Save Tournament">
+                        <div className="m3-text-field mb-6">
+                            <label>Tournament Name</label>
+                            <input 
+                                type="text" 
+                                value={saveName} 
+                                onChange={(e) => setSaveName(e.target.value)} 
+                                autoFocus 
+                                onKeyPress={(e) => e.key === 'Enter' && saveNew()}
+                            />
                         </div>
-                    </Modal>
+                        <div className="flex gap-3 justify-end">
+                            <button onClick={() => { setShowSaveDialog(false); setSaveName(''); }} className="m3-btn m3-btn-text">Cancel</button>
+                            <button onClick={saveNew} className="m3-btn m3-btn-filled">Save</button>
+                        </div>
+                    </Dialog>
                     
-                    <Modal isOpen={showManageDialog} onClose={() => setShowManageDialog(false)} title="⚙️ Manage Tournaments" size="md">
+                    <Dialog isOpen={showManageDialog} onClose={() => setShowManageDialog(false)} title="Manage Tournaments">
                         {savedTournaments.length === 0 ? (
-                            <p className="text-gray-600 text-center py-8">No saved tournaments yet.</p>
+                            <p className="body-large text-center py-8" style={{ color: 'var(--md-sys-color-outline)' }}>No saved tournaments yet.</p>
                         ) : (
-                            <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+                            <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
                                 {savedTournaments.map(name => {
                                     const saved = JSON.parse(localStorage.getItem('wrestlingTournaments') || '{}');
                                     const lastMod = saved[name]?.lastModified ? new Date(saved[name].lastModified).toLocaleDateString() : 'Unknown';
                                     return (
-                                        <div key={name} className="flex justify-between items-center p-4 border-2 border-gray-200 rounded-xl hover:border-purple-400 transition-all">
+                                        <div key={name} className="m3-card m3-card-outlined p-4 flex justify-between items-center">
                                             <div>
-                                                <div className="font-semibold text-lg">{name}</div>
-                                                <div className="text-sm text-gray-500">📅 Last modified: {lastMod}</div>
+                                                <p className="title-medium">{name}</p>
+                                                <p className="body-small" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Last modified: {lastMod}</p>
                                             </div>
                                             <button 
                                                 onClick={() => deleteTournament(name)} 
-                                                className="bg-red-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-600 transition-all transform hover:scale-105"
+                                                className="m3-btn"
+                                                style={{ backgroundColor: 'var(--md-sys-color-error-container)', color: 'var(--md-sys-color-on-error-container)' }}
                                             >
-                                                🗑️ Delete
+                                                <span className="material-icons-round" style={{ fontSize: 18 }}>delete</span>
+                                                Delete
                                             </button>
                                         </div>
                                     );
                                 })}
                             </div>
                         )}
-                    </Modal>
+                    </Dialog>
                     
-                    <Modal isOpen={showPasteDialog} onClose={() => setShowPasteDialog(false)} title="📋 Paste Roster Data" size="lg">
+                    <Dialog isOpen={showPasteDialog} onClose={() => setShowPasteDialog(false)} title="Paste Roster Data" size="lg">
                         <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold mb-2">Select Team</label>
-                                <select 
-                                    value={pasteTeam} 
-                                    onChange={(e) => setPasteTeam(e.target.value)} 
-                                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
-                                >
+                            <div className="m3-text-field">
+                                <label>Select Team</label>
+                                <select value={pasteTeam} onChange={(e) => setPasteTeam(e.target.value)}>
                                     <option value="t1">{names.t1}</option>
                                     <option value="t2">{names.t2}</option>
                                     <option value="t3">{names.t3}</option>
                                 </select>
                             </div>
-                            <div>
-                                <label className="block text-sm font-semibold mb-2">Paste Data (FirstName, LastName, Weight, DOB, Exp, Skill)</label>
+                            <div className="m3-text-field">
+                                <label>Paste Data (FirstName, LastName, Weight, DOB, Exp, Skill)</label>
                                 <textarea 
                                     value={pasteText} 
                                     onChange={(e) => setPasteText(e.target.value)} 
-                                    className="w-full border-2 border-gray-300 rounded-lg px-4 py-3 h-64 font-mono text-sm focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none" 
+                                    style={{ height: 200, fontFamily: 'monospace' }}
                                     placeholder="John,Doe,150,01/15/2010,2,3&#10;Jane,Smith,145,03/20/2011,1,2"
                                 />
                             </div>
-                            <div className="flex gap-3">
-                                <button onClick={handlePaste} className="flex-1 btn-primary text-white px-6 py-3 rounded-lg font-semibold shadow-lg">Import</button>
-                                <button onClick={() => { setShowPasteDialog(false); setPasteText(''); }} className="flex-1 bg-gray-300 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-400 transition-all">Cancel</button>
+                            <div className="flex gap-3 justify-end">
+                                <button onClick={() => { setShowPasteDialog(false); setPasteText(''); }} className="m3-btn m3-btn-text">Cancel</button>
+                                <button onClick={handlePaste} className="m3-btn m3-btn-filled">Import</button>
                             </div>
                         </div>
-                    </Modal>
+                    </Dialog>
                     
-                    <Modal isOpen={showScratchDialog} onClose={() => setShowScratchDialog(false)} title="⚠️ Scratched Wrestlers" size="md">
-                        <p className="text-sm text-gray-600 mb-4">
+                    <Dialog isOpen={showScratchDialog} onClose={() => setShowScratchDialog(false)} title="Scratched Wrestlers">
+                        <p className="body-medium mb-4" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
                             These wrestlers were removed from the tournament. Click "Restore" to add them back.
                         </p>
                         {scratched.length === 0 ? (
-                            <p className="text-gray-600 text-center py-8">No scratched wrestlers.</p>
+                            <p className="body-large text-center py-8" style={{ color: 'var(--md-sys-color-outline)' }}>No scratched wrestlers.</p>
                         ) : (
-                            <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+                            <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
                                 {scratched.map((w, idx) => {
                                     const c = getColor(w.Team);
                                     return (
-                                        <div 
-                                            key={idx} 
-                                            className="flex justify-between items-center p-4 border-2 rounded-xl hover:border-purple-400 transition-all" 
-                                            style={{ borderLeftColor: c, borderLeftWidth: '4px' }}
-                                        >
+                                        <div key={idx} className="m3-card m3-card-outlined p-4 flex justify-between items-center" style={{ borderLeftWidth: 4, borderLeftColor: c }}>
                                             <div>
                                                 <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>
-                                                        {getAbbrev(w.Team)}
-                                                    </span>
-                                                    <div className="font-semibold text-lg" style={{ color: c }}>{w.Name}</div>
+                                                    <span className="label-medium px-2 py-1 shape-small" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
+                                                    <span className="title-medium" style={{ color: c }}>{w.Name}</span>
                                                 </div>
-                                                <div className="text-sm text-gray-600">
-                                                    {w.Team} • {w.Weight} lbs • Age {w.Age} • Skill {w.Skill}
-                                                </div>
+                                                <p className="body-small" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Team} · {w.Weight} lbs · Age {w.Age} · Skill {w.Skill}</p>
                                             </div>
-                                            <button
-                                                onClick={() => restoreWrestler(w)}
-                                                className="bg-green-500 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-600 transition-all transform hover:scale-105"
-                                            >
-                                                ↻ Restore
+                                            <button onClick={() => restoreWrestler(w)} className="m3-btn" style={{ backgroundColor: 'var(--md-sys-color-success-container)', color: 'var(--md-sys-color-on-success-container)' }}>
+                                                <span className="material-icons-round" style={{ fontSize: 18 }}>restore</span>
+                                                Restore
                                             </button>
                                         </div>
                                     );
                                 })}
                             </div>
                         )}
-                    </Modal>
+                    </Dialog>
                     
-                    <Modal isOpen={showAnalytics} onClose={() => setShowAnalytics(false)} title="📊 Tournament Analytics" size="xl">
+                    <Dialog isOpen={showAnalytics} onClose={() => setShowAnalytics(false)} title="Tournament Analytics" size="xl">
                         <div className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                                <StatCard title="Total Wrestlers" value={analytics.totalWrestlers} icon="👥" color="blue" />
-                                <StatCard title="Total Matches" value={analytics.totalMatches} icon="🤼" color="purple" />
-                                <StatCard title="Avg Matches/Wrestler" value={analytics.avgMatchesPerWrestler} icon="📊" color="green" />
-                                <StatCard title="Rest Violations" value={analytics.restViolations} icon="⚠️" color="orange" />
+                                <StatCard title="Total Wrestlers" value={analytics.totalWrestlers} icon="👥" color="primary" />
+                                <StatCard title="Total Matches" value={analytics.totalMatches} icon="🤼" color="secondary" />
+                                <StatCard title="Avg Matches/Wrestler" value={analytics.avgMatchesPerWrestler} icon="📊" color="success" />
+                                <StatCard title="Rest Violations" value={analytics.restViolations} icon="⚠️" color="warning" />
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="glass rounded-xl p-6">
-                                    <h3 className="font-bold text-lg mb-4">Match Distribution</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="m3-card m3-card-filled p-4">
+                                    <h3 className="title-medium mb-4">Match Distribution</h3>
                                     <div className="space-y-3">
                                         {Object.entries(analytics.distribution).map(([count, wrestlers]) => (
-                                            <div key={count} className="flex justify-between items-center">
-                                                <span className="font-medium">{count} matches:</span>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-48 bg-gray-200 rounded-full h-4 overflow-hidden">
-                                                        <div 
-                                                            className="bg-gradient-to-r from-purple-500 to-blue-500 h-full rounded-full transition-all"
-                                                            style={{ width: `${(wrestlers / analytics.totalWrestlers) * 100}%` }}
-                                                        ></div>
+                                            <div key={count} className="flex justify-between items-center gap-4">
+                                                <span className="label-large" style={{ minWidth: 80 }}>{count} matches:</span>
+                                                <div className="flex-1">
+                                                    <div className="m3-progress">
+                                                        <div className="m3-progress-bar" style={{ width: `${(wrestlers / analytics.totalWrestlers) * 100}%` }}></div>
                                                     </div>
-                                                    <span className="font-bold w-12 text-right">{wrestlers}</span>
                                                 </div>
+                                                <span className="title-small" style={{ minWidth: 32, textAlign: 'right' }}>{wrestlers}</span>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                                 
-                                <div className="glass rounded-xl p-6">
-                                    <h3 className="font-bold text-lg mb-4">Mat Distribution</h3>
+                                <div className="m3-card m3-card-filled p-4">
+                                    <h3 className="title-medium mb-4">Mat Distribution</h3>
                                     <div className="space-y-3">
                                         {[1, 2, 3].map(mat => (
-                                            <div key={mat} className="flex justify-between items-center">
-                                                <span className="font-medium">Mat {mat}:</span>
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-48 bg-gray-200 rounded-full h-4 overflow-hidden">
-                                                        <div 
-                                                            className="bg-gradient-to-r from-green-500 to-teal-500 h-full rounded-full transition-all"
-                                                            style={{ width: `${(analytics.matCounts[mat] / analytics.totalMatches) * 100}%` }}
-                                                        ></div>
+                                            <div key={mat} className="flex justify-between items-center gap-4">
+                                                <span className="label-large" style={{ minWidth: 80 }}>Mat {mat}:</span>
+                                                <div className="flex-1">
+                                                    <div className="m3-progress" style={{ backgroundColor: 'var(--md-sys-color-tertiary-container)' }}>
+                                                        <div className="m3-progress-bar" style={{ width: `${(analytics.matCounts[mat] / analytics.totalMatches) * 100}%`, backgroundColor: 'var(--md-sys-color-tertiary)' }}></div>
                                                     </div>
-                                                    <span className="font-bold w-12 text-right">{analytics.matCounts[mat]}</span>
                                                 </div>
+                                                <span className="title-small" style={{ minWidth: 32, textAlign: 'right' }}>{analytics.matCounts[mat]}</span>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             </div>
                             
-                            <div className="glass rounded-xl p-6">
-                                <h3 className="font-bold text-lg mb-4">Quality Score</h3>
-                                <div className="flex items-center gap-4">
-                                    <div className="text-5xl font-bold gradient-text">{analytics.avgQuality}</div>
+                            <div className="m3-card m3-card-filled p-4" style={{ backgroundColor: 'var(--md-sys-color-primary-container)' }}>
+                                <h3 className="title-medium mb-4" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>Quality Score</h3>
+                                <div className="flex items-center gap-6">
+                                    <div className="display-medium" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>{analytics.avgQuality}</div>
                                     <div className="flex-1">
-                                        <div className="text-sm text-gray-600 mb-2">Average match quality (out of 7)</div>
-                                        <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-                                            <div 
-                                                className="bg-gradient-to-r from-purple-500 to-blue-500 h-full rounded-full transition-all flex items-center justify-end px-3 text-white text-sm font-bold"
-                                                style={{ width: `${(analytics.avgQuality / 7) * 100}%` }}
-                                            >
-                                                {((analytics.avgQuality / 7) * 100).toFixed(0)}%
-                                            </div>
+                                        <p className="body-small mb-2" style={{ color: 'var(--md-sys-color-on-primary-container)', opacity: 0.8 }}>Average match quality (out of 7)</p>
+                                        <div className="m3-progress" style={{ height: 8 }}>
+                                            <div className="m3-progress-bar" style={{ width: `${(analytics.avgQuality / 7) * 100}%` }}></div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </Modal>
+                    </Dialog>
                 </div>
             );
         };
