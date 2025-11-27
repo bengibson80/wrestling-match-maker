@@ -480,10 +480,10 @@
         
         const App = () => {
             // State from Premium v2
-            const [rosters, setRosters] = useState({ t1: [], t2: [], t3: [] });
-            const [names, setNames] = useState({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3' });
-            const [abbrevs, setAbbrevs] = useState({ t1: 'T1', t2: 'T2', t3: 'T3' });
-            const [colors, setColors] = useState({ t1: '#1a73e8', t2: '#7c3aed', t3: '#1e8e3e' });
+            const [rosters, setRosters] = useState({ t1: [], t2: [], t3: [], t4: [] });
+            const [names, setNames] = useState({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3', t4: 'Team 4' });
+            const [abbrevs, setAbbrevs] = useState({ t1: 'T1', t2: 'T2', t3: 'T3', t4: 'T4' });
+            const [colors, setColors] = useState({ t1: '#1a73e8', t2: '#7c3aed', t3: '#1e8e3e', t4: '#e8710a' });
             const [matches, setMatches] = useState([]);
             const [scratched, setScratched] = useState([]);
             const [settings, setSettings] = useState({ 
@@ -522,7 +522,7 @@
             const [saveName, setSaveName] = useState('');
             const [manualData, setManualData] = useState({ firstName: '', lastName: '', weight: '', dob: '', exp: '0', skill: '1', team: 't1' });
             
-            const total = rosters.t1.length + rosters.t2.length + rosters.t3.length;
+            const total = rosters.t1.length + rosters.t2.length + rosters.t3.length + rosters.t4.length;
             
             const showToast = useCallback((message, type = 'info') => {
                 setToast({ message, type });
@@ -597,7 +597,7 @@
                     const data = saved[name];
                     setRosters(data.rosters);
                     setNames(data.names);
-                    setAbbrevs(data.abbrevs || { t1: 'T1', t2: 'T2', t3: 'T3' });
+                    setAbbrevs(data.abbrevs || { t1: 'T1', t2: 'T2', t3: 'T3', t4: 'T4' });
                     setColors(data.colors);
                     setMatches(data.matches);
                     setScratched(data.scratched || []);
@@ -617,10 +617,10 @@
             };
             
             const newTournament = () => {
-                setRosters({ t1: [], t2: [], t3: [] });
-                setNames({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3' });
-                setAbbrevs({ t1: 'T1', t2: 'T2', t3: 'T3' });
-                setColors({ t1: '#1a73e8', t2: '#7c3aed', t3: '#1e8e3e' });
+                setRosters({ t1: [], t2: [], t3: [], t4: [] });
+                setNames({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3', t4: 'Team 4' });
+                setAbbrevs({ t1: 'T1', t2: 'T2', t3: 'T3', t4: 'T4' });
+                setColors({ t1: '#1a73e8', t2: '#7c3aed', t3: '#1e8e3e', t4: '#e8710a' });
                 setMatches([]);
                 setScratched([]);
                 setCurrentTournament('');
@@ -882,7 +882,7 @@
             };
             
             const generate = () => {
-                const all = [...rosters.t1, ...rosters.t2, ...rosters.t3];
+                const all = [...rosters.t1, ...rosters.t2, ...rosters.t3, ...rosters.t4];
                 const counts = {};
                 all.forEach(w => counts[`${w.Name}-${w.Team}`] = 0);
                 
@@ -1014,7 +1014,7 @@
             };
             
             const getSuggestions = (w) => {
-                const all = [...rosters.t1, ...rosters.t2, ...rosters.t3];
+                const all = [...rosters.t1, ...rosters.t2, ...rosters.t3, ...rosters.t4];
                 const current = getMatches(w);
                 const matched = new Set(current.map(m => m.w1.Name === w.Name ? m.w2.Name : m.w1.Name));
                 const hasNoMatches = current.length === 0;
@@ -1068,7 +1068,7 @@
             const exportExcel = () => {
                 const wb = XLSX.utils.book_new();
                 
-                ['t1', 't2', 't3'].forEach(tk => {
+                ['t1', 't2', 't3', 't4'].forEach(tk => {
                     if (!rosters[tk].length) return;
                     const data = [['Age', 'Weight', 'Skill', '', `${names[tk]} (${abbrevs[tk]})`]];
                     rosters[tk].sort((a, b) => (a.LastName || a.Name).localeCompare(b.LastName || b.Name)).forEach(w => {
@@ -1122,7 +1122,7 @@
             };
             
             const analytics = useMemo(() => {
-                const allWrestlers = [...rosters.t1, ...rosters.t2, ...rosters.t3];
+                const allWrestlers = [...rosters.t1, ...rosters.t2, ...rosters.t3, ...rosters.t4];
                 const matchCounts = {};
                 matches.forEach(m => {
                     matchCounts[m.w1.Name] = (matchCounts[m.w1.Name] || 0) + 1;
@@ -1251,7 +1251,7 @@
                                                     <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--md-sys-color-tertiary)' }}></span>
                                                     {currentTournament} (auto-saving)
                                                 </span>
-                                            ) : 'Smart pairing for 2-3 team scrambles'}
+                                            ) : 'Smart pairing for 2-4 team scrambles'}
                                         </p>
                                     </div>
                                 </div>
@@ -1340,9 +1340,9 @@
                                         )}
                                     </div>
                                     
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                        {['t1', 't2', 't3'].map(tk => (
-                                            <div key={tk} className="md-card-outlined p-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                        {['t1', 't2', 't3', 't4'].map(tk => (
+                                            <div key={tk} className="md-card-outlined p-4">
                                                 <div className="flex items-center justify-between mb-4">
                                                     <h3 className="text-xl font-bold" style={{ color: rosters[tk].length > 0 ? colors[tk] : 'var(--md-sys-color-on-surface)' }}>
                                                         {names[tk]}
@@ -1440,7 +1440,7 @@
                             {tab === 'teams' && matches.length > 0 && (
                                 <div>
                                     <div className="flex gap-2 border-b mb-6 flex-wrap" style={{ borderColor: 'var(--md-sys-color-outline-variant)' }}>
-                                        {['t1', 't2', 't3'].map(tk => rosters[tk].length > 0 && (
+                                        {['t1', 't2', 't3', 't4'].map(tk => rosters[tk].length > 0 && (
                                             <button key={tk} onClick={() => setTeamView(tk)} className={`tab-button ${teamView === tk ? 'active' : ''}`} style={teamView === tk ? { color: colors[tk] } : {}}>
                                                 <span className="font-bold">{abbrevs[tk]}</span> - {names[tk]} ({rosters[tk].length})
                                             </button>
@@ -1698,7 +1698,7 @@
                     
                     <Modal isOpen={showNameDialog} onClose={() => setShowNameDialog(false)} title="Edit Team Names" size="md">
                         <div className="space-y-6">
-                            {['t1', 't2', 't3'].map(tk => (
+                            {['t1', 't2', 't3', 't4'].map(tk => (
                                 <div key={tk} className="flex items-center gap-4">
                                     <input type="color" value={colors[tk]} onChange={(e) => setColors(p => ({ ...p, [tk]: e.target.value }))} className="w-12 h-12 rounded-lg cursor-pointer border-2" style={{ borderColor: 'var(--md-sys-color-outline-variant)' }} />
                                     <div className="flex-1">
@@ -1756,6 +1756,7 @@
                                         <option value="t1">{names.t1}</option>
                                         <option value="t2">{names.t2}</option>
                                         <option value="t3">{names.t3}</option>
+                                        <option value="t4">{names.t4}</option>
                                     </select>
                                 </div>
                             </div>
@@ -1774,6 +1775,7 @@
                                     <option value="t1">{names.t1}</option>
                                     <option value="t2">{names.t2}</option>
                                     <option value="t3">{names.t3}</option>
+                                    <option value="t4">{names.t4}</option>
                                 </select>
                             </div>
                             <div>
