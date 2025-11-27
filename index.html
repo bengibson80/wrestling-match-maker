@@ -399,7 +399,7 @@
             return (
                 <div className="md-card p-6">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-3xl">{icon}</span>
+                        <span className="material-symbols-rounded" style={{ fontSize: '32px', color: colors[color] || colors.blue }}>{icon}</span>
                         <div className="text-4xl font-bold" style={{ color: colors[color] || colors.blue }}>{value}</div>
                     </div>
                     <div className="text-sm font-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{title}</div>
@@ -1829,11 +1829,11 @@
                     <Modal isOpen={showAnalytics} onClose={() => setShowAnalytics(false)} title="Tournament Analytics" size="xl">
                         <div className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                                <StatCard title="Total Wrestlers" value={analytics.totalWrestlers} icon="ðŸ‘¥" color="blue" />
-                                <StatCard title="Total Matches" value={analytics.totalMatches} icon="ðŸ¤¼" color="purple" />
-                                <StatCard title="Avg Matches/Wrestler" value={analytics.avgMatchesPerWrestler} icon="ðŸ“Š" color="green" />
-                                <StatCard title="0 Matches" value={analytics.wrestlersWithZeroMatches} icon="🚫" color={analytics.wrestlersWithZeroMatches > 0 ? "orange" : "green"} />
-                                <StatCard title="Rest Violations" value={analytics.restViolations} icon="âš ï¸" color="orange" />
+                                <StatCard title="Total Wrestlers" value={analytics.totalWrestlers} icon="groups" color="blue" />
+                                <StatCard title="Total Matches" value={analytics.totalMatches} icon="sports_kabaddi" color="purple" />
+                                <StatCard title="Avg Matches/Wrestler" value={analytics.avgMatchesPerWrestler} icon="bar_chart" color="green" />
+                                <StatCard title="0 Matches" value={analytics.wrestlersWithZeroMatches} icon="person_off" color={analytics.wrestlersWithZeroMatches > 0 ? "orange" : "green"} />
+                                <StatCard title="Rest Violations" value={analytics.restViolations} icon="warning" color="orange" />
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
