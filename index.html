@@ -1618,6 +1618,7 @@
                                                                                     <span className="font-mono font-semibold">#{m.num}</span>
                                                                                     <span className="px-1 py-0.5 rounded text-white" style={{ backgroundColor: oc }}>{getAbbrev(opp.Team)}</span>
                                                                                     <span className="font-semibold truncate" style={{ color: oc }}>{opp.Name}</span>
+                                                                                    <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-700">{getMatches(opp).length}</span>
                                                                                 </div>
                                                                                 <button onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} className="text-red-600 hover:bg-red-100 rounded px-1">X</button>
                                                                             </div>
@@ -1662,6 +1663,7 @@
                                                                         {expanded && <span className="material-symbols-rounded text-orange-500" style={{ fontSize: '18px' }}>warning</span>}
                                                                         <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
                                                                         <span className="font-bold text-lg" style={{ color: c }}>{w.Name}</span>
+                                                                        <span className="text-sm font-bold px-2 py-0.5 rounded-full bg-gray-200 text-gray-700">{getMatches(w).length}</span>
                                                                     </div>
                                                                     <StatsCompare w1={selected} w2={w} compact={false} />
                                                                 </div>
