@@ -1091,7 +1091,11 @@
             };
             
             const addMatch = (w, opp) => {
-                const q = calcScore(w, opp);
+                let q = calcScore(w, opp);
+                if (!q) {
+                    // Try with expanded criteria
+                    q = calcScore(w, opp, true);
+                }
                 if (!q) return;
                 const mat = 1;
                 const newMatches = renumber([...matches, { w1: w, w2: opp, w1Key: `${w.Name}-${w.Team}`, w2Key: `${opp.Name}-${opp.Team}`, mat, order: matches.filter(m => m.mat === mat).length, ...q }]);
