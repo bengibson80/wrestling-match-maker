@@ -748,11 +748,48 @@
             };
             
             const calcAge = (dob) => {
-                const birthDate = new Date(dob);
+                // Parse date components to avoid timezone issues
+                let year, month, day;
+                
+                if (typeof dob === 'string') {
+                    if (dob.includes('/')) {
+                        // MM/DD/YYYY or M/D/YYYY format
+                        const parts = dob.split('/');
+                        month = parseInt(parts[0]);
+                        day = parseInt(parts[1]);
+                        year = parseInt(parts[2]);
+                    } else if (dob.includes('-')) {
+                        // YYYY-MM-DD format (ISO)
+                        const parts = dob.split('-');
+                        year = parseInt(parts[0]);
+                        month = parseInt(parts[1]);
+                        day = parseInt(parts[2]);
+                    } else {
+                        // Fallback - try to parse and extract components
+                        const d = new Date(dob);
+                        year = d.getFullYear();
+                        month = d.getMonth() + 1;
+                        day = d.getDate();
+                    }
+                } else if (dob instanceof Date) {
+                    year = dob.getFullYear();
+                    month = dob.getMonth() + 1;
+                    day = dob.getDate();
+                } else {
+                    // Fallback
+                    const d = new Date(dob);
+                    year = d.getFullYear();
+                    month = d.getMonth() + 1;
+                    day = d.getDate();
+                }
+                
                 const today = new Date();
-                let age = today.getFullYear() - birthDate.getFullYear();
-                const monthDiff = today.getMonth() - birthDate.getMonth();
-                if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                const todayYear = today.getFullYear();
+                const todayMonth = today.getMonth() + 1;
+                const todayDay = today.getDate();
+                
+                let age = todayYear - year;
+                if (todayMonth < month || (todayMonth === month && todayDay < day)) {
                     age--;
                 }
                 return age;
