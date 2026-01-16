@@ -1173,11 +1173,14 @@
                 let suggestions = potentialOpponents
                     .map(x => {
                         const score = calcScore(w, x, false);
-                        const expandedScore = calcScore(w, x, true);
                         if (score) {
-                            return { w: x, ...score, matchCount: getMatches(x).length };
-                        } else if (expandedScore) {
-                            return { w: x, ...expandedScore, matchCount: getMatches(x).length };
+                            // Match is within normal criteria - explicitly mark as not expanded
+                            return { w: x, ...score, expanded: false, matchCount: getMatches(x).length };
+                        }
+                        const expandedScore = calcScore(w, x, true);
+                        if (expandedScore) {
+                            // Match only valid with expanded criteria - mark as expanded
+                            return { w: x, ...expandedScore, expanded: true, matchCount: getMatches(x).length };
                         }
                         return null;
                     })
@@ -1828,6 +1831,9 @@
                                                                                 {/* Compact stats */}
                                                                                 <span className={`px-1 py-0.5 rounded font-semibold ${m.wtPct <= 5 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`} style={{ fontSize: '9px' }}>
                                                                                     {m.wtPct.toFixed(0)}%
+                                                                                </span>
+                                                                                <span className="px-1 py-0.5 rounded font-semibold bg-purple-100 text-purple-800" style={{ fontSize: '9px' }} title="Average Skill">
+                                                                                    S{((m.w1.Skill + m.w2.Skill) / 2).toFixed(1)}
                                                                                 </span>
                                                                                 {anyNeedsRest && <span className="material-symbols-rounded text-orange-500" style={{ fontSize: '12px' }}>warning</span>}
                                                                             </div>
