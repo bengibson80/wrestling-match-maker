@@ -1038,7 +1038,7 @@
                 
                 const assignMat = (match, matCounts) => {
                     const skill = match.avgSkill;
-                    const numMats = settings.numberOfMats;
+                    const numMats = settings.numberOfMats || 3;
                     
                     // Create mat preference order based on skill
                     // Lower skill -> lower mat numbers, higher skill -> higher mat numbers
@@ -1065,7 +1065,7 @@
                 
                 const result = [];
                 const matCounts = {};
-                for (let i = 1; i <= settings.numberOfMats; i++) matCounts[i] = 0;
+                for (let i = 1; i <= (settings.numberOfMats || 3); i++) matCounts[i] = 0;
                 
                 // First pass: ensure everyone gets at least one match
                 for (const m of possible) {
@@ -1298,7 +1298,7 @@
                     XLSX.utils.book_append_sheet(wb, ws, names[tk].substring(0, 31));
                 });
                 
-                for (let mat = 1; mat <= settings.numberOfMats; mat++) {
+                for (let mat = 1; mat <= (settings.numberOfMats || 3); mat++) {
                     const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
                     if (!ms.length) continue;
                     const data = [['#', 'Team 1', 'Wrestler 1', 'Wt', 'vs', 'Team 2', 'Wrestler 2', 'Wt', 'Wt%', 'Winner']];
@@ -1615,7 +1615,7 @@
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
                                             <label className="block text-sm font-semibold mb-2">Number of Mats</label>
-                                            <select value={settings.numberOfMats} onChange={(e) => setSettings(p => ({ ...p, numberOfMats: parseInt(e.target.value) }))} className="md-text-field">
+                                            <select value={settings.numberOfMats || 3} onChange={(e) => setSettings(p => ({ ...p, numberOfMats: parseInt(e.target.value) }))} className="md-text-field">
                                                 <option value={2}>2 Mats</option>
                                                 <option value={3}>3 Mats</option>
                                                 <option value={4}>4 Mats</option>
@@ -1655,7 +1655,7 @@
                                     <div className="p-6 rounded-xl" style={{ backgroundColor: 'var(--md-sys-color-primary-container)', borderLeft: '4px solid var(--md-sys-color-primary)' }}>
                                         <h3 className="font-bold text-lg mb-4" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>Current Rules Summary</h3>
                                         <ul className="space-y-2 text-sm" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
-                                            <li>Using {settings.numberOfMats} mats with max {settings.maxPerMat} matches each</li>
+                                            <li>Using {settings.numberOfMats || 3} mats with max {settings.maxPerMat} matches each</li>
                                             <li>Weight within {settings.maxWt}% (prefer {settings.preferredWt}%)</li>
                                             <li>Age within {settings.maxAge} year(s)</li>
                                             <li>Skill within {settings.maxSkill} points</li>
@@ -1800,8 +1800,8 @@
                                     
                                     {/* Unified scroll container for all mats */}
                                     <div className="overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 280px)' }}>
-                                        <div className={`grid grid-cols-1 gap-3 ${settings.numberOfMats === 2 ? 'lg:grid-cols-2' : settings.numberOfMats === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
-                                            {Array.from({ length: settings.numberOfMats }, (_, i) => i + 1).map(mat => {
+                                        <div className={`grid grid-cols-1 gap-3 ${(settings.numberOfMats || 3) === 2 ? 'lg:grid-cols-2' : (settings.numberOfMats || 3) === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
+                                            {Array.from({ length: settings.numberOfMats || 3 }, (_, i) => i + 1).map(mat => {
                                                 const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
                                                 const isColumnDragOver = dragged && dropTarget.mat === mat;
                                                 
@@ -2087,7 +2087,7 @@
                                 <div className="md-card p-6">
                                     <h3 className="font-bold text-lg mb-4">Mat Distribution</h3>
                                     <div className="space-y-3">
-                                        {Array.from({ length: settings.numberOfMats }, (_, i) => i + 1).map(mat => (
+                                        {Array.from({ length: settings.numberOfMats || 3 }, (_, i) => i + 1).map(mat => (
                                             <div key={mat} className="flex justify-between items-center">
                                                 <span className="font-medium">Mat {mat}:</span>
                                                 <div className="flex items-center gap-3">
