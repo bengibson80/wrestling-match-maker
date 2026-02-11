@@ -10,9 +10,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
-    <!-- QR Code Generator -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    
     <!-- Google Fonts and Material Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
@@ -402,7 +399,7 @@
             return (
                 <div className="md-card p-6">
                     <div className="flex items-center justify-between mb-2">
-                        <span className="text-3xl">{icon}</span>
+                        <span className="material-symbols-rounded" style={{ fontSize: '36px', color: colors[color] || colors.blue }}>{icon}</span>
                         <div className="text-4xl font-bold" style={{ color: colors[color] || colors.blue }}>{value}</div>
                     </div>
                     <div className="text-sm font-medium" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{title}</div>
@@ -467,15 +464,15 @@
                     </div>
                     <div className={`px-2 py-1 rounded text-center ${ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                         <div className="font-bold">{w1.Age} vs {w2.Age}</div>
-                        <div className="opacity-75">Age: Â±{ageDiff}</div>
+                        <div className="opacity-75">Age: ±{ageDiff}</div>
                     </div>
                     <div className={`px-2 py-1 rounded text-center ${expDiff <= 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                         <div className="font-bold">{w1.Exp || 1} vs {w2.Exp || 1}</div>
-                        <div className="opacity-75">Exp: Â±{expDiff}</div>
+                        <div className="opacity-75">Exp: ±{expDiff}</div>
                     </div>
                     <div className={`px-2 py-1 rounded text-center ${skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                         <div className="font-bold">{w1.Skill} vs {w2.Skill}</div>
-                        <div className="opacity-75">Skill: Â±{skillDiff}</div>
+                        <div className="opacity-75">Skill: ±{skillDiff}</div>
                     </div>
                 </div>
             );
@@ -496,7 +493,8 @@
                 maxSkill: 2, 
                 minMatchesPerWrestler: 2,
                 maxPerMat: 25,
-                minRestBetweenBouts: 4
+                minRestBetweenBouts: 4,
+                numberOfMats: 3
             });
             const [tab, setTab] = useState('upload');
             const [teamView, setTeamView] = useState('t1');
@@ -520,18 +518,15 @@
             const [showNameDialog, setShowNameDialog] = useState(false);
             const [showManualDialog, setShowManualDialog] = useState(false);
             const [showAnalytics, setShowAnalytics] = useState(false);
-            const [showDiagnostics, setShowDiagnostics] = useState(false);
-            const [diagnosticData, setDiagnosticData] = useState(null);
+            const [showEditDialog, setShowEditDialog] = useState(false);
+            const [showSearchOpponent, setShowSearchOpponent] = useState(false);
             const [pasteText, setPasteText] = useState('');
             
-            // Live sharing state
-            const [liveSession, setLiveSession] = useState(null); // { blobId, viewerUrl, lastPush }
-            const [showLiveDialog, setShowLiveDialog] = useState(false);
-            const [qrCodeUrl, setQrCodeUrl] = useState('');
-            const [isPushing, setIsPushing] = useState(false);
             const [pasteTeam, setPasteTeam] = useState('t1');
             const [saveName, setSaveName] = useState('');
             const [manualData, setManualData] = useState({ firstName: '', lastName: '', weight: '', dob: '', exp: '0', skill: '1', team: 't1' });
+            const [editData, setEditData] = useState(null);
+            const [opponentSearch, setOpponentSearch] = useState('');
             
             const total = rosters.t1.length + rosters.t2.length + rosters.t3.length + rosters.t4.length;
             
@@ -589,104 +584,6 @@
                 }
             };
             
-            // Live sharing functions using JSONBlob (free, no API key needed)
-            const getViewerBaseUrl = () => {
-                // Try to construct viewer URL based on current location
-                const currentUrl = window.location.href;
-                const baseUrl = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1);
-                return baseUrl + 'wrestling_viewer.html';
-            };
-            
-            const getLiveData = () => {
-                return {
-                    matches: matches.map(m => ({
-                        num: m.num,
-                        mat: m.mat,
-                        order: m.order,
-                        w1: { Name: m.w1.Name, Team: m.w1.Team, Weight: m.w1.Weight, LastName: m.w1.LastName, FirstName: m.w1.FirstName },
-                        w2: { Name: m.w2.Name, Team: m.w2.Team, Weight: m.w2.Weight, LastName: m.w2.LastName, FirstName: m.w2.FirstName },
-                        wtPct: m.wtPct
-                    })),
-                    names,
-                    abbrevs,
-                    colors,
-                    tournamentName: currentTournament || 'Wrestling Tournament',
-                    updatedAt: new Date().toISOString()
-                };
-            };
-            
-            const goLive = async () => {
-                setIsPushing(true);
-                try {
-                    const liveData = getLiveData();
-                    
-                    // Create new JSONBlob
-                    const response = await fetch('https://jsonblob.com/api/jsonBlob', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(liveData)
-                    });
-                    
-                    if (!response.ok) throw new Error('Failed to create live session');
-                    
-                    // Get blob ID from Location header
-                    const location = response.headers.get('Location');
-                    const blobId = location.split('/').pop();
-                    const viewerUrl = `${getViewerBaseUrl()}?session=${blobId}`;
-                    
-                    // Generate QR code
-                    const qr = await QRCode.toDataURL(viewerUrl, { width: 256, margin: 2 });
-                    setQrCodeUrl(qr);
-                    
-                    setLiveSession({ blobId, viewerUrl, lastPush: new Date() });
-                    setShowLiveDialog(true);
-                    showToast('Live session started!', 'success');
-                } catch (error) {
-                    console.error('Go Live error:', error);
-                    showToast('Failed to start live session: ' + error.message, 'error');
-                } finally {
-                    setIsPushing(false);
-                }
-            };
-            
-            const pushUpdate = async () => {
-                if (!liveSession) return;
-                setIsPushing(true);
-                try {
-                    const liveData = getLiveData();
-                    
-                    const response = await fetch(`https://jsonblob.com/api/jsonBlob/${liveSession.blobId}`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(liveData)
-                    });
-                    
-                    if (!response.ok) throw new Error('Failed to update live session');
-                    
-                    setLiveSession(prev => ({ ...prev, lastPush: new Date() }));
-                    showToast('Live view updated!', 'success');
-                } catch (error) {
-                    console.error('Push Update error:', error);
-                    showToast('Failed to update: ' + error.message, 'error');
-                } finally {
-                    setIsPushing(false);
-                }
-            };
-            
-            const endLive = () => {
-                setLiveSession(null);
-                setQrCodeUrl('');
-                setShowLiveDialog(false);
-                showToast('Live session ended', 'info');
-            };
-            
-            const copyLiveLink = () => {
-                if (liveSession) {
-                    navigator.clipboard.writeText(liveSession.viewerUrl);
-                    showToast('Link copied to clipboard!', 'success');
-                }
-            };
-            
             const saveNew = () => {
                 if (!saveName.trim()) { showToast('Please enter a tournament name', 'error'); return; }
                 const state = { rosters, names, abbrevs, colors, matches, scratched, settings };
@@ -738,14 +635,17 @@
             };
             
             const renumber = (ms) => {
-                const byMat = { 1: [], 2: [], 3: [] };
-                ms.forEach(m => byMat[m.mat].push(m));
+                const byMat = {};
+                for (let i = 1; i <= 4; i++) byMat[i] = [];
+                ms.forEach(m => {
+                    if (byMat[m.mat]) byMat[m.mat].push(m);
+                });
                 const result = [];
-                [1, 2, 3].forEach(mat => {
+                for (let mat = 1; mat <= 4; mat++) {
                     byMat[mat].sort((a, b) => (a.order || 0) - (b.order || 0)).forEach((m, i) => {
                         result.push({ ...m, num: mat * 100 + i, order: i });
                     });
-                });
+                }
                 return result;
             };
             
@@ -975,6 +875,73 @@
                 showToast('Wrestler added successfully!', 'success');
             };
             
+            // Edit wrestler function
+            const openEditDialog = (wrestler, teamKey) => {
+                // Convert DOB to YYYY-MM-DD format for date input
+                let dobFormatted = wrestler.DOB;
+                if (wrestler.DOB && wrestler.DOB.includes('/')) {
+                    const parts = wrestler.DOB.split('/');
+                    dobFormatted = `${parts[2]}-${parts[0].padStart(2, '0')}-${parts[1].padStart(2, '0')}`;
+                }
+                
+                setEditData({
+                    original: wrestler,
+                    teamKey: teamKey,
+                    firstName: wrestler.FirstName || wrestler.Name.split(' ')[0],
+                    lastName: wrestler.LastName || wrestler.Name.split(' ').slice(1).join(' '),
+                    weight: wrestler.Weight.toString(),
+                    dob: dobFormatted,
+                    exp: wrestler.Exp?.toString() || '0',
+                    skill: wrestler.Skill?.toString() || '1'
+                });
+                setShowEditDialog(true);
+            };
+            
+            const handleEditSave = () => {
+                if (!editData) return;
+                
+                if (!editData.firstName || !editData.lastName || !editData.weight || !editData.dob) {
+                    showToast('Please fill all required fields', 'error');
+                    return;
+                }
+                
+                const updatedWrestler = {
+                    ...editData.original,
+                    FirstName: editData.firstName,
+                    LastName: editData.lastName,
+                    Name: `${editData.firstName} ${editData.lastName}`,
+                    Weight: parseFloat(editData.weight),
+                    Age: calcAge(editData.dob),
+                    DOB: editData.dob,
+                    Exp: parseInt(editData.exp),
+                    Skill: parseInt(editData.skill)
+                };
+                
+                // Update in roster
+                setRosters(prev => ({
+                    ...prev,
+                    [editData.teamKey]: prev[editData.teamKey].map(w => 
+                        w.Name === editData.original.Name ? updatedWrestler : w
+                    )
+                }));
+                
+                // Update in matches
+                setMatches(prev => prev.map(m => ({
+                    ...m,
+                    w1: (m.w1.Name === editData.original.Name && m.w1.Team === editData.original.Team) ? updatedWrestler : m.w1,
+                    w2: (m.w2.Name === editData.original.Name && m.w2.Team === editData.original.Team) ? updatedWrestler : m.w2
+                })));
+                
+                // Update selected if it's the same wrestler
+                if (selected?.Name === editData.original.Name && selected?.Team === editData.original.Team) {
+                    setSelected(updatedWrestler);
+                }
+                
+                setShowEditDialog(false);
+                setEditData(null);
+                showToast('Wrestler updated successfully!', 'success');
+            };
+            
             const scratchWrestler = (wrestler) => {
                 const team = Object.keys(names).find(k => names[k] === wrestler.Team);
                 setRosters(prev => ({ ...prev, [team]: prev[team].filter(w => w.Name !== wrestler.Name) }));
@@ -1014,8 +981,8 @@
                 setScratched(prev => prev.map(w => w.Team === oldName ? { ...w, Team: newName } : w));
             };
             
-            // Updated calcScore to include expDiff
-            const calcScore = (w1, w2, expanded = false) => {
+            // Updated calcScore to include expDiff - now supports forceCalc for manual search
+            const calcScore = (w1, w2, expanded = false, forceCalc = false) => {
                 const wtDiff = Math.abs(w1.Weight - w2.Weight);
                 const wtPct = (wtDiff / Math.min(w1.Weight, w2.Weight)) * 100;
                 const ageDiff = Math.abs(w1.Age - w2.Age);
@@ -1026,6 +993,20 @@
                 const maxWtLimit = expanded ? settings.maxWt * 2 : settings.maxWt;
                 const maxAgeLimit = expanded ? settings.maxAge * 2 : settings.maxAge;
                 const maxSkillLimit = expanded ? settings.maxSkill * 2 : settings.maxSkill;
+                
+                // For forceCalc, always return data but mark if outside criteria
+                if (forceCalc) {
+                    const withinCriteria = wtPct <= settings.maxWt && ageDiff <= settings.maxAge && skillDiff <= settings.maxSkill && w1.Team !== w2.Team;
+                    const withinExpanded = wtPct <= maxWtLimit && ageDiff <= maxAgeLimit && skillDiff <= maxSkillLimit && w1.Team !== w2.Team;
+                    const wtScore = wtPct <= settings.preferredWt ? wtPct * 2 : wtPct * 3;
+                    return { 
+                        score: wtScore + skillDiff * 1.5 + ageDiff * 0.5, 
+                        wtPct, wtDiff, ageDiff, skillDiff, expDiff, 
+                        expanded: !withinCriteria && withinExpanded,
+                        outsideCriteria: !withinCriteria && !withinExpanded,
+                        sameTeam: w1.Team === w2.Team
+                    };
+                }
                 
                 if (wtPct > maxWtLimit || ageDiff > maxAgeLimit || skillDiff > maxSkillLimit || w1.Team === w2.Team) return null;
                 
@@ -1038,55 +1019,16 @@
                 const counts = {};
                 all.forEach(w => counts[`${w.Name}-${w.Team}`] = 0);
                 
-                // === DIAGNOSTICS: Track why pairings fail ===
-                const rejectionReasons = {}; // key -> { weight: count, age: count, skill: count, sameTeam: count }
-                all.forEach(w => {
-                    rejectionReasons[`${w.Name}-${w.Team}`] = { weight: 0, age: 0, skill: 0, sameTeam: 0, totalCandidates: 0, closestFails: [] };
-                });
-                
                 const possible = [];
                 for (let i = 0; i < all.length; i++) {
                     for (let j = i + 1; j < all.length; j++) {
-                        const w1 = all[i], w2 = all[j];
-                        const w1Key = `${w1.Name}-${w1.Team}`;
-                        const w2Key = `${w2.Name}-${w2.Team}`;
-                        
-                        // Track rejections for diagnostics
-                        if (w1.Team === w2.Team) {
-                            rejectionReasons[w1Key].sameTeam++;
-                            rejectionReasons[w2Key].sameTeam++;
-                        } else {
-                            rejectionReasons[w1Key].totalCandidates++;
-                            rejectionReasons[w2Key].totalCandidates++;
-                            
-                            const wtPct = (Math.abs(w1.Weight - w2.Weight) / Math.min(w1.Weight, w2.Weight)) * 100;
-                            const ageDiff = Math.abs(w1.Age - w2.Age);
-                            const skillDiff = Math.abs(w1.Skill - w2.Skill);
-                            
-                            const failReasons = [];
-                            if (wtPct > settings.maxWt) failReasons.push('weight');
-                            if (ageDiff > settings.maxAge) failReasons.push('age');
-                            if (skillDiff > settings.maxSkill) failReasons.push('skill');
-                            
-                            if (failReasons.length > 0) {
-                                failReasons.forEach(r => {
-                                    rejectionReasons[w1Key][r]++;
-                                    rejectionReasons[w2Key][r]++;
-                                });
-                                // Track closest fails for unmatched wrestlers
-                                const failScore = (wtPct / settings.maxWt) + (ageDiff / Math.max(settings.maxAge, 1)) + (skillDiff / Math.max(settings.maxSkill, 1));
-                                rejectionReasons[w1Key].closestFails.push({ wrestler: w2, wtPct, ageDiff, skillDiff, failReasons, failScore });
-                                rejectionReasons[w2Key].closestFails.push({ wrestler: w1, wtPct, ageDiff, skillDiff, failReasons, failScore });
-                            }
-                        }
-                        
-                        const q = calcScore(w1, w2);
+                        const q = calcScore(all[i], all[j]);
                         if (q) {
                             possible.push({ 
-                                w1, w2, 
-                                w1Key, 
-                                w2Key,
-                                avgSkill: (w1.Skill + w2.Skill) / 2,
+                                w1: all[i], w2: all[j], 
+                                w1Key: `${all[i].Name}-${all[i].Team}`, 
+                                w2Key: `${all[j].Name}-${all[j].Team}`,
+                                avgSkill: (all[i].Skill + all[j].Skill) / 2,
                                 ...q 
                             });
                         }
@@ -1096,24 +1038,34 @@
                 
                 const assignMat = (match, matCounts) => {
                     const skill = match.avgSkill;
-                    if (skill <= 1) {
-                        if (matCounts[1] < settings.maxPerMat) return 1;
-                        if (matCounts[2] < settings.maxPerMat) return 2;
-                        if (matCounts[3] < settings.maxPerMat) return 3;
+                    const numMats = settings.numberOfMats || 3;
+                    
+                    // Create mat preference order based on skill
+                    // Lower skill -> lower mat numbers, higher skill -> higher mat numbers
+                    let matOrder = [];
+                    if (numMats === 2) {
+                        matOrder = skill <= 2.5 ? [1, 2] : [2, 1];
+                    } else if (numMats === 3) {
+                        if (skill <= 1.5) matOrder = [1, 2, 3];
+                        else if (skill <= 3.5) matOrder = [2, 1, 3];
+                        else matOrder = [3, 2, 1];
+                    } else { // 4 mats
+                        if (skill <= 1.5) matOrder = [1, 2, 3, 4];
+                        else if (skill <= 2.5) matOrder = [2, 1, 3, 4];
+                        else if (skill <= 3.5) matOrder = [3, 2, 4, 1];
+                        else matOrder = [4, 3, 2, 1];
                     }
-                    if (skill <= 3) {
-                        if (matCounts[2] < settings.maxPerMat) return 2;
-                        if (matCounts[3] < settings.maxPerMat) return 3;
-                        if (matCounts[1] < settings.maxPerMat) return 1;
+                    
+                    // Find first available mat
+                    for (const mat of matOrder) {
+                        if (matCounts[mat] < settings.maxPerMat) return mat;
                     }
-                    if (matCounts[3] < settings.maxPerMat) return 3;
-                    if (matCounts[2] < settings.maxPerMat) return 2;
-                    if (matCounts[1] < settings.maxPerMat) return 1;
                     return null;
                 };
                 
                 const result = [];
-                const matCounts = { 1: 0, 2: 0, 3: 0 };
+                const matCounts = {};
+                for (let i = 1; i <= (settings.numberOfMats || 3); i++) matCounts[i] = 0;
                 
                 // First pass: ensure everyone gets at least one match
                 for (const m of possible) {
@@ -1153,61 +1105,10 @@
                     if (!added) break;
                 }
                 
-                // === BUILD DIAGNOSTICS ===
-                const unmatchedWrestlers = all.filter(w => counts[`${w.Name}-${w.Team}`] === 0);
-                const lowMatchWrestlers = all.filter(w => {
-                    const c = counts[`${w.Name}-${w.Team}`];
-                    return c > 0 && c < settings.minMatchesPerWrestler;
-                });
-                
-                // Build team-level summary
-                const teamDiag = {};
-                ['t1', 't2', 't3', 't4'].forEach(tk => {
-                    if (rosters[tk].length === 0) return;
-                    const teamWrestlers = rosters[tk];
-                    const teamUnmatched = teamWrestlers.filter(w => counts[`${w.Name}-${w.Team}`] === 0);
-                    const teamMatchCounts = teamWrestlers.map(w => counts[`${w.Name}-${w.Team}`]);
-                    const avgMatches = teamMatchCounts.length > 0 ? (teamMatchCounts.reduce((a, b) => a + b, 0) / teamMatchCounts.length).toFixed(1) : 0;
-                    
-                    teamDiag[tk] = {
-                        name: names[tk],
-                        total: teamWrestlers.length,
-                        unmatched: teamUnmatched.length,
-                        avgMatches,
-                        weightRange: `${Math.min(...teamWrestlers.map(w => w.Weight))}-${Math.max(...teamWrestlers.map(w => w.Weight))}`,
-                        ageRange: `${Math.min(...teamWrestlers.map(w => w.Age))}-${Math.max(...teamWrestlers.map(w => w.Age))}`,
-                        skillRange: `${Math.min(...teamWrestlers.map(w => w.Skill))}-${Math.max(...teamWrestlers.map(w => w.Skill))}`
-                    };
-                });
-                
-                // Sort closest fails for unmatched wrestlers
-                unmatchedWrestlers.forEach(w => {
-                    const key = `${w.Name}-${w.Team}`;
-                    rejectionReasons[key].closestFails.sort((a, b) => a.failScore - b.failScore);
-                    rejectionReasons[key].closestFails = rejectionReasons[key].closestFails.slice(0, 3);
-                });
-                
-                const diag = {
-                    unmatchedWrestlers,
-                    lowMatchWrestlers: lowMatchWrestlers.map(w => ({ ...w, matchCount: counts[`${w.Name}-${w.Team}`] })),
-                    rejectionReasons,
-                    counts,
-                    teamDiag,
-                    settings: { ...settings }
-                };
-                
-                setDiagnosticData(diag);
                 setMatches(result);
                 addToHistory({ matches: result });
                 setTab('mats');
-                
-                // Auto-show diagnostics if there are issues
-                if (unmatchedWrestlers.length > 0 || lowMatchWrestlers.length > 0) {
-                    setShowDiagnostics(true);
-                    showToast(`Generated ${result.length} matches — ${unmatchedWrestlers.length} wrestler(s) unmatched!`, 'warning');
-                } else {
-                    showToast(`Generated ${result.length} matches!`, 'success');
-                }
+                showToast(`Generated ${result.length} matches!`, 'success');
             };
             
             const getMatches = (w) => matches.filter(m => (m.w1.Name === w.Name && m.w1.Team === w.Team) || (m.w2.Name === w.Name && m.w2.Team === w.Team));
@@ -1225,12 +1126,21 @@
                     // Try with expanded criteria
                     q = calcScore(w, opp, true);
                 }
-                if (!q) return;
+                if (!q) {
+                    // Force calculate for manual additions outside all criteria
+                    q = calcScore(w, opp, true, true);
+                }
+                if (!q || q.sameTeam) {
+                    showToast('Cannot create match between wrestlers on the same team', 'error');
+                    return;
+                }
                 const mat = 1;
                 const newMatches = renumber([...matches, { w1: w, w2: opp, w1Key: `${w.Name}-${w.Team}`, w2Key: `${opp.Name}-${opp.Team}`, mat, order: matches.filter(m => m.mat === mat).length, ...q }]);
                 setMatches(newMatches);
                 addToHistory({ matches: newMatches });
                 setSelected(null);
+                setShowSearchOpponent(false);
+                setOpponentSearch('');
                 showToast('Match added', 'success');
             };
             
@@ -1259,29 +1169,73 @@
                 showToast(`Match moved to Mat ${targetMat} position ${targetIndex + 1}`, 'success');
             };
             
+            // Improved getSuggestions - prioritizes wrestlers with fewer matches
             const getSuggestions = (w) => {
                 const all = [...rosters.t1, ...rosters.t2, ...rosters.t3, ...rosters.t4];
                 const current = getMatches(w);
-                const matched = new Set(current.map(m => m.w1.Name === w.Name ? m.w2.Name : m.w1.Name));
+                const matched = new Set(current.map(m => m.w1.Name === w.Name ? `${m.w2.Name}-${m.w2.Team}` : `${m.w1.Name}-${m.w1.Team}`));
                 const hasNoMatches = current.length === 0;
                 
-                // First try with normal criteria
-                let suggestions = all.filter(x => x.Name !== w.Name && x.Team !== w.Team && !matched.has(x.Name))
-                    .map(x => ({ w: x, ...calcScore(w, x, false) }))
-                    .filter(x => x.score)
-                    .sort((a, b) => a.score - b.score)
-                    .slice(0, 10);
+                // Get all potential opponents (different team, not already matched)
+                const potentialOpponents = all.filter(x => 
+                    x.Name !== w.Name && 
+                    x.Team !== w.Team && 
+                    !matched.has(`${x.Name}-${x.Team}`)
+                );
                 
-                // If wrestler has no matches and no normal suggestions, try expanded criteria
-                if (hasNoMatches && suggestions.length === 0) {
-                    suggestions = all.filter(x => x.Name !== w.Name && x.Team !== w.Team && !matched.has(x.Name))
-                        .map(x => ({ w: x, ...calcScore(w, x, true) }))
-                        .filter(x => x.score)
-                        .sort((a, b) => a.score - b.score)
-                        .slice(0, 10);
-                }
+                // Calculate scores for all potential opponents - try normal then expanded
+                let suggestions = potentialOpponents
+                    .map(x => {
+                        const score = calcScore(w, x, false);
+                        if (score) {
+                            // Match is within normal criteria - explicitly mark as not expanded
+                            return { w: x, ...score, expanded: false, matchCount: getMatches(x).length };
+                        }
+                        const expandedScore = calcScore(w, x, true);
+                        if (expandedScore) {
+                            // Match only valid with expanded criteria - mark as expanded
+                            return { w: x, ...expandedScore, expanded: true, matchCount: getMatches(x).length };
+                        }
+                        return null;
+                    })
+                    .filter(x => x !== null)
+                    .sort((a, b) => {
+                        // Prioritize wrestlers with fewer matches first
+                        if (a.matchCount !== b.matchCount) {
+                            return a.matchCount - b.matchCount;
+                        }
+                        // Then by score
+                        return a.score - b.score;
+                    })
+                    .slice(0, 15); // Show more suggestions
                 
                 return suggestions;
+            };
+            
+            // Search all wrestlers from other teams for manual matchup
+            const searchAllOpponents = (w, searchTerm) => {
+                const all = [...rosters.t1, ...rosters.t2, ...rosters.t3, ...rosters.t4];
+                const current = getMatches(w);
+                const matched = new Set(current.map(m => m.w1.Name === w.Name ? `${m.w2.Name}-${m.w2.Team}` : `${m.w1.Name}-${m.w1.Team}`));
+                
+                const searchLower = searchTerm.toLowerCase();
+                
+                return all
+                    .filter(x => 
+                        x.Name !== w.Name && 
+                        x.Team !== w.Team && 
+                        !matched.has(`${x.Name}-${x.Team}`) &&
+                        (x.Name.toLowerCase().includes(searchLower) || 
+                         x.Weight.toString().includes(searchTerm) ||
+                         (x.FirstName && x.FirstName.toLowerCase().includes(searchLower)) ||
+                         (x.LastName && x.LastName.toLowerCase().includes(searchLower)))
+                    )
+                    .map(x => {
+                        const scoreData = calcScore(w, x, false, true);
+                        return { w: x, ...scoreData, matchCount: getMatches(x).length };
+                    })
+                    .sort((a, b) => a.score - b.score)
+                    .slice(0, 20);
             };
             
             const getColor = (team) => {
@@ -1295,15 +1249,26 @@
             };
             
             const needsRestHighlight = (wrestler, matchNum, mat) => {
+                // Get all matches for this wrestler across ALL mats
                 const wrestlerMatches = matches
-                    .filter(m => m.mat === mat)
-                    .filter(m => (m.w1.Name === wrestler.Name && m.w1.Team === wrestler.Team) || (m.w2.Name === wrestler.Name && m.w2.Team === wrestler.Team))
-                    .sort((a, b) => a.order - b.order);
+                    .filter(m => (m.w1.Name === wrestler.Name && m.w1.Team === wrestler.Team) || (m.w2.Name === wrestler.Name && m.w2.Team === wrestler.Team));
                 
                 if (wrestlerMatches.length < 2) return false;
                 
+                // Create a global timeline - matches at same order position across mats happen ~simultaneously
+                // Sort by order first, then by mat as tiebreaker
+                wrestlerMatches.sort((a, b) => {
+                    if (a.order !== b.order) return a.order - b.order;
+                    return a.mat - b.mat;
+                });
+                
+                // Check gaps between consecutive matches
                 for (let i = 0; i < wrestlerMatches.length - 1; i++) {
-                    const gap = wrestlerMatches[i + 1].order - wrestlerMatches[i].order;
+                    // Calculate effective gap - if on same mat, use order diff
+                    // If on different mats, matches at same order are ~simultaneous (gap = 0)
+                    const orderDiff = wrestlerMatches[i + 1].order - wrestlerMatches[i].order;
+                    const gap = orderDiff; // Even across mats, order position determines timing
+                    
                     if (gap <= settings.minRestBetweenBouts) {
                         if (wrestlerMatches[i].num === matchNum || wrestlerMatches[i + 1].num === matchNum) return true;
                     }
@@ -1333,9 +1298,9 @@
                     XLSX.utils.book_append_sheet(wb, ws, names[tk].substring(0, 31));
                 });
                 
-                [1, 2, 3].forEach(mat => {
+                for (let mat = 1; mat <= (settings.numberOfMats || 3); mat++) {
                     const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
-                    if (!ms.length) return;
+                    if (!ms.length) continue;
                     const data = [['#', 'Team 1', 'Wrestler 1', 'Wt', 'vs', 'Team 2', 'Wrestler 2', 'Wt', 'Wt%', 'Winner']];
                     ms.forEach(m => {
                         data.push([m.num, abbrevs[Object.keys(names).find(k => names[k] === m.w1.Team)] || 'XX', 
@@ -1346,7 +1311,7 @@
                     const ws = XLSX.utils.aoa_to_sheet(data);
                     ws['!cols'] = [{ wch: 5 }, { wch: 6 }, { wch: 20 }, { wch: 5 }, { wch: 3 }, { wch: 6 }, { wch: 20 }, { wch: 5 }, { wch: 6 }, { wch: 15 }];
                     XLSX.utils.book_append_sheet(wb, ws, `Mat ${mat}`);
-                });
+                }
                 
                 XLSX.writeFile(wb, 'wrestling_matches.xlsx');
                 showToast('Exported to Excel', 'success');
@@ -1386,41 +1351,48 @@
                 const avgQuality = matches.length > 0 ?
                     (matches.reduce((sum, m) => sum + (7 - m.score), 0) / matches.length).toFixed(1) : 0;
                 
-                // Calculate rest violations
+                // Calculate rest violations ACROSS ALL MATS
                 let restViolations = 0;
                 const countedViolations = new Set(); // Track unique violations to avoid double counting
                 
-                [1, 2, 3].forEach(mat => {
-                    const matMatches = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
-                    
-                    // Check each wrestler's matches on this mat
-                    const wrestlerMatchesOnMat = {};
-                    matMatches.forEach(m => {
-                        const w1Key = `${m.w1.Name}-${m.w1.Team}`;
-                        const w2Key = `${m.w2.Name}-${m.w2.Team}`;
-                        if (!wrestlerMatchesOnMat[w1Key]) wrestlerMatchesOnMat[w1Key] = [];
-                        if (!wrestlerMatchesOnMat[w2Key]) wrestlerMatchesOnMat[w2Key] = [];
-                        wrestlerMatchesOnMat[w1Key].push(m);
-                        wrestlerMatchesOnMat[w2Key].push(m);
+                // Group all matches by wrestler (across all mats)
+                const wrestlerAllMatches = {};
+                matches.forEach(m => {
+                    const w1Key = `${m.w1.Name}-${m.w1.Team}`;
+                    const w2Key = `${m.w2.Name}-${m.w2.Team}`;
+                    if (!wrestlerAllMatches[w1Key]) wrestlerAllMatches[w1Key] = [];
+                    if (!wrestlerAllMatches[w2Key]) wrestlerAllMatches[w2Key] = [];
+                    wrestlerAllMatches[w1Key].push(m);
+                    wrestlerAllMatches[w2Key].push(m);
+                });
+                
+                // Check for violations across all mats
+                Object.values(wrestlerAllMatches).forEach(wrestlerMatches => {
+                    if (wrestlerMatches.length < 2) return;
+                    // Sort by order (matches at same order across mats happen ~simultaneously)
+                    wrestlerMatches.sort((a, b) => {
+                        if (a.order !== b.order) return a.order - b.order;
+                        return a.mat - b.mat;
                     });
-                    
-                    // Check for violations
-                    Object.values(wrestlerMatchesOnMat).forEach(wrestlerMatches => {
-                        if (wrestlerMatches.length < 2) return;
-                        wrestlerMatches.sort((a, b) => a.order - b.order);
-                        for (let i = 0; i < wrestlerMatches.length - 1; i++) {
-                            const gap = wrestlerMatches[i + 1].order - wrestlerMatches[i].order;
-                            if (gap <= settings.minRestBetweenBouts) {
-                                // Create unique key for this violation pair
-                                const violationKey = `${wrestlerMatches[i].num}-${wrestlerMatches[i + 1].num}`;
-                                if (!countedViolations.has(violationKey)) {
-                                    countedViolations.add(violationKey);
-                                    restViolations++;
-                                }
+                    for (let i = 0; i < wrestlerMatches.length - 1; i++) {
+                        const gap = wrestlerMatches[i + 1].order - wrestlerMatches[i].order;
+                        if (gap <= settings.minRestBetweenBouts) {
+                            // Create unique key for this violation pair (sorted to avoid duplicates)
+                            const nums = [wrestlerMatches[i].num, wrestlerMatches[i + 1].num].sort((a,b) => a-b);
+                            const violationKey = `${nums[0]}-${nums[1]}`;
+                            if (!countedViolations.has(violationKey)) {
+                                countedViolations.add(violationKey);
+                                restViolations++;
                             }
                         }
-                    });
+                    }
                 });
+                
+                // Calculate mat counts dynamically
+                const matCounts = {};
+                for (let i = 1; i <= 4; i++) {
+                    matCounts[i] = matches.filter(m => m.mat === i).length;
+                }
                 
                 return {
                     totalWrestlers: allWrestlers.length,
@@ -1428,7 +1400,7 @@
                     avgMatchesPerWrestler: avgMatches,
                     distribution,
                     avgQuality,
-                    matCounts: { 1: matches.filter(m => m.mat === 1).length, 2: matches.filter(m => m.mat === 2).length, 3: matches.filter(m => m.mat === 3).length },
+                    matCounts,
                     restViolations
                 };
             }, [rosters, matches, settings.minRestBetweenBouts]);
@@ -1492,13 +1464,7 @@
                                     <div>
                                         <h1 className="text-3xl font-bold" style={{ color: 'var(--md-sys-color-on-surface)' }}>Wrestling Match Maker Pro</h1>
                                         <p style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
-                                            {liveSession ? (
-                                                <span className="flex items-center gap-2">
-                                                    <span className="inline-block w-3 h-3 rounded-full animate-pulse" style={{ backgroundColor: '#ea4335' }}></span>
-                                                    <span style={{ color: '#ea4335', fontWeight: '600' }}>LIVE</span>
-                                                    <span>â€¢ {currentTournament || 'Tournament'}</span>
-                                                </span>
-                                            ) : currentTournament ? (
+                                            {currentTournament ? (
                                                 <span className="flex items-center gap-2">
                                                     <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: 'var(--md-sys-color-tertiary)' }}></span>
                                                     {currentTournament} (auto-saving)
@@ -1530,36 +1496,9 @@
                                             <button onClick={() => setShowAnalytics(true)} className="md-filled-button">
                                                 <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>analytics</span>Analytics
                                             </button>
-                                            {diagnosticData && (diagnosticData.unmatchedWrestlers.length > 0 || diagnosticData.lowMatchWrestlers.length > 0) && (
-                                                <button onClick={() => setShowDiagnostics(true)} className="md-filled-button" style={{ backgroundColor: 'var(--md-sys-color-warning)', color: 'var(--md-sys-color-on-warning)' }}>
-                                                    <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>troubleshoot</span>
-                                                    Issues ({diagnosticData.unmatchedWrestlers.length + diagnosticData.lowMatchWrestlers.length})
-                                                </button>
-                                            )}
-                                            {diagnosticData && diagnosticData.unmatchedWrestlers.length === 0 && diagnosticData.lowMatchWrestlers.length === 0 && (
-                                                <button onClick={() => setShowDiagnostics(true)} className="md-outlined-button" style={{ borderColor: 'var(--md-sys-color-tertiary)', color: 'var(--md-sys-color-tertiary)' }}>
-                                                    <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>troubleshoot</span>Diagnostics
-                                                </button>
-                                            )}
                                             <button onClick={exportExcel} className="md-filled-button" style={{ backgroundColor: 'var(--md-sys-color-tertiary)' }}>
                                                 <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>download</span>Export
                                             </button>
-                                            {!liveSession ? (
-                                                <button onClick={goLive} disabled={isPushing} className="md-filled-button" style={{ backgroundColor: '#ea4335' }}>
-                                                    <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>{isPushing ? 'hourglass_empty' : 'cell_tower'}</span>
-                                                    {isPushing ? 'Starting...' : 'Go Live'}
-                                                </button>
-                                            ) : (
-                                                <>
-                                                    <button onClick={pushUpdate} disabled={isPushing} className="md-filled-button" style={{ backgroundColor: '#ea4335' }}>
-                                                        <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>{isPushing ? 'hourglass_empty' : 'publish'}</span>
-                                                        {isPushing ? 'Pushing...' : 'Push Update'}
-                                                    </button>
-                                                    <button onClick={() => setShowLiveDialog(true)} className="md-outlined-button" style={{ borderColor: '#ea4335', color: '#ea4335' }}>
-                                                        <span className="material-symbols-rounded">qr_code_2</span>
-                                                    </button>
-                                                </>
-                                            )}
                                         </>
                                     )}
                                     {historyIndex > 0 && (
@@ -1643,9 +1582,12 @@
                                                             <div key={idx} className="wrestler-card p-3 rounded-lg flex justify-between items-center" style={{ backgroundColor: 'var(--md-sys-color-surface-container)', borderLeft: `3px solid ${colors[tk]}` }}>
                                                                 <div>
                                                                     <div className="font-semibold" style={{ color: colors[tk] }}>{w.Name}</div>
-                                                                    <div className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb â€¢ Age {w.Age} â€¢ Exp {w.Exp} â€¢ Skill {w.Skill}</div>
+                                                                    <div className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb • Age {w.Age} • Exp {w.Exp} • Skill {w.Skill}</div>
                                                                 </div>
                                                                 <div className="flex gap-1">
+                                                                    <button onClick={() => openEditDialog(w, tk)} className="md-text-button p-1" title="Edit">
+                                                                        <span className="material-symbols-rounded" style={{ fontSize: '18px' }}>edit</span>
+                                                                    </button>
                                                                     <button onClick={() => scratchWrestler(w)} className="md-text-button p-1" title="Scratch">
                                                                         <span className="material-symbols-rounded" style={{ fontSize: '18px' }}>healing</span>
                                                                     </button>
@@ -1672,6 +1614,18 @@
                                 <div className="max-w-4xl mx-auto space-y-8">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <div>
+                                            <label className="block text-sm font-semibold mb-2">Number of Mats</label>
+                                            <select value={settings.numberOfMats || 3} onChange={(e) => setSettings(p => ({ ...p, numberOfMats: parseInt(e.target.value) }))} className="md-text-field">
+                                                <option value={2}>2 Mats</option>
+                                                <option value={3}>3 Mats</option>
+                                                <option value={4}>4 Mats</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-semibold mb-2">Max Matches per Mat</label>
+                                            <input type="number" value={settings.maxPerMat} onChange={(e) => setSettings(p => ({ ...p, maxPerMat: parseInt(e.target.value) }))} className="md-text-field" />
+                                        </div>
+                                        <div>
                                             <label className="block text-sm font-semibold mb-2">Max Weight Difference (%)</label>
                                             <input type="number" value={settings.maxWt} onChange={(e) => setSettings(p => ({ ...p, maxWt: parseFloat(e.target.value) }))} className="md-text-field" />
                                         </div>
@@ -1692,10 +1646,6 @@
                                             <input type="number" value={settings.minMatchesPerWrestler} onChange={(e) => setSettings(p => ({ ...p, minMatchesPerWrestler: parseInt(e.target.value) }))} className="md-text-field" />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-semibold mb-2">Max Matches per Mat</label>
-                                            <input type="number" value={settings.maxPerMat} onChange={(e) => setSettings(p => ({ ...p, maxPerMat: parseInt(e.target.value) }))} className="md-text-field" />
-                                        </div>
-                                        <div className="md:col-span-2">
                                             <label className="block text-sm font-semibold mb-2">Min Rest Between Bouts</label>
                                             <input type="number" value={settings.minRestBetweenBouts} onChange={(e) => setSettings(p => ({ ...p, minRestBetweenBouts: parseInt(e.target.value) }))} className="md-text-field" />
                                             <p className="text-xs mt-1" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Number of matches between bouts for adequate rest</p>
@@ -1705,11 +1655,11 @@
                                     <div className="p-6 rounded-xl" style={{ backgroundColor: 'var(--md-sys-color-primary-container)', borderLeft: '4px solid var(--md-sys-color-primary)' }}>
                                         <h3 className="font-bold text-lg mb-4" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>Current Rules Summary</h3>
                                         <ul className="space-y-2 text-sm" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
+                                            <li>Using {settings.numberOfMats || 3} mats with max {settings.maxPerMat} matches each</li>
                                             <li>Weight within {settings.maxWt}% (prefer {settings.preferredWt}%)</li>
                                             <li>Age within {settings.maxAge} year(s)</li>
                                             <li>Skill within {settings.maxSkill} points</li>
                                             <li>Each wrestler gets {settings.minMatchesPerWrestler}-3 matches</li>
-                                            <li>Maximum {settings.maxPerMat} matches per mat</li>
                                             <li>Minimum {settings.minRestBetweenBouts} matches rest between bouts</li>
                                         </ul>
                                     </div>
@@ -1748,7 +1698,7 @@
                                                                 <div className="flex items-center gap-2">
                                                                     <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
                                                                     <span className="font-bold" style={{ color: c }}>{w.Name}</span>
-                                                                    <span className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb â€¢ {w.Age}y â€¢ E{w.Exp} â€¢ S{w.Skill}</span>
+                                                                    <span className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb • {w.Age}y • E{w.Exp} • S{w.Skill}</span>
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-2">
@@ -1787,11 +1737,18 @@
                                             {selected ? (
                                                 <div className="space-y-4">
                                                     <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--md-sys-color-primary-container)' }}>
-                                                        <h3 className="font-bold text-lg" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
-                                                            <span className="material-symbols-rounded" style={{ marginRight: '8px', verticalAlign: 'middle' }}>sports_kabaddi</span>
-                                                            Suggested Opponents for {selected.Name}
-                                                        </h3>
-                                                        <p className="text-sm" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>Click to add match</p>
+                                                        <div className="flex justify-between items-center">
+                                                            <div>
+                                                                <h3 className="font-bold text-lg" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
+                                                                    <span className="material-symbols-rounded" style={{ marginRight: '8px', verticalAlign: 'middle' }}>sports_kabaddi</span>
+                                                                    Suggested Opponents for {selected.Name}
+                                                                </h3>
+                                                                <p className="text-sm" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>Click to add match • Sorted by fewest matches first</p>
+                                                            </div>
+                                                            <button onClick={() => setShowSearchOpponent(true)} className="md-outlined-button" style={{ borderColor: 'var(--md-sys-color-on-primary-container)', color: 'var(--md-sys-color-on-primary-container)' }}>
+                                                                <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>search</span>Search All
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                     
                                                     {/* Show warning if expanded criteria are being used */}
@@ -1805,7 +1762,7 @@
                                                     )}
                                                     
                                                     <div className="space-y-3 max-h-[500px] overflow-y-auto custom-scrollbar">
-                                                        {getSuggestions(selected).map(({ w, wtPct, ageDiff, expDiff, skillDiff, expanded }) => {
+                                                        {getSuggestions(selected).map(({ w, wtPct, ageDiff, expDiff, skillDiff, expanded, matchCount }) => {
                                                             const c = getColor(w.Team);
                                                             return (
                                                                 <div key={w.Name} onClick={() => addMatch(selected, w)} className={`match-card md-card-outlined p-4 cursor-pointer hover:shadow-lg ${expanded ? 'ring-2 ring-orange-400' : ''}`} style={expanded ? { backgroundColor: 'var(--md-sys-color-warning-container)' } : {}}>
@@ -1813,7 +1770,7 @@
                                                                         {expanded && <span className="material-symbols-rounded text-orange-500" style={{ fontSize: '18px' }}>warning</span>}
                                                                         <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
                                                                         <span className="font-bold text-lg" style={{ color: c }}>{w.Name}</span>
-                                                                        <span className="text-sm font-bold px-2 py-0.5 rounded-full bg-gray-200 text-gray-700">{getMatches(w).length}</span>
+                                                                        <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${matchCount === 0 ? 'bg-red-100 text-red-700' : matchCount < 2 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-200 text-gray-700'}`}>{matchCount} {matchCount === 1 ? 'match' : 'matches'}</span>
                                                                     </div>
                                                                     <StatsCompare w1={selected} w2={w} compact={false} />
                                                                 </div>
@@ -1843,8 +1800,8 @@
                                     
                                     {/* Unified scroll container for all mats */}
                                     <div className="overflow-y-auto custom-scrollbar" style={{ maxHeight: 'calc(100vh - 280px)' }}>
-                                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-                                            {[1, 2, 3].map(mat => {
+                                        <div className={`grid grid-cols-1 gap-3 ${(settings.numberOfMats || 3) === 2 ? 'lg:grid-cols-2' : (settings.numberOfMats || 3) === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
+                                            {Array.from({ length: settings.numberOfMats || 3 }, (_, i) => i + 1).map(mat => {
                                                 const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
                                                 const isColumnDragOver = dragged && dropTarget.mat === mat;
                                                 
@@ -1914,6 +1871,9 @@
                                                                                 {/* Compact stats */}
                                                                                 <span className={`px-1 py-0.5 rounded font-semibold ${m.wtPct <= 5 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`} style={{ fontSize: '9px' }}>
                                                                                     {m.wtPct.toFixed(0)}%
+                                                                                </span>
+                                                                                <span className="px-1 py-0.5 rounded font-semibold bg-purple-100 text-purple-800" style={{ fontSize: '9px' }} title="Average Skill">
+                                                                                    S{((m.w1.Skill + m.w2.Skill) / 2).toFixed(1)}
                                                                                 </span>
                                                                                 {anyNeedsRest && <span className="material-symbols-rounded text-orange-500" style={{ fontSize: '12px' }}>warning</span>}
                                                                             </div>
@@ -2085,7 +2045,7 @@
                                                     <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
                                                     <div className="font-semibold text-lg" style={{ color: c }}>{w.Name}</div>
                                                 </div>
-                                                <div className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight} lbs â€¢ Age {w.Age} â€¢ Exp {w.Exp} â€¢ Skill {w.Skill}</div>
+                                                <div className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight} lbs • Age {w.Age} • Exp {w.Exp} • Skill {w.Skill}</div>
                                             </div>
                                             <button onClick={() => restoreWrestler(w)} className="md-filled-button" style={{ backgroundColor: 'var(--md-sys-color-tertiary)' }}>
                                                 <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>restore</span>Restore
@@ -2127,7 +2087,7 @@
                                 <div className="md-card p-6">
                                     <h3 className="font-bold text-lg mb-4">Mat Distribution</h3>
                                     <div className="space-y-3">
-                                        {[1, 2, 3].map(mat => (
+                                        {Array.from({ length: settings.numberOfMats || 3 }, (_, i) => i + 1).map(mat => (
                                             <div key={mat} className="flex justify-between items-center">
                                                 <span className="font-medium">Mat {mat}:</span>
                                                 <div className="flex items-center gap-3">
@@ -2144,353 +2104,104 @@
                         </div>
                     </Modal>
                     
-                    {/* Diagnostics Modal */}
-                    <Modal isOpen={showDiagnostics} onClose={() => setShowDiagnostics(false)} title="Match Generation Diagnostics" size="xl">
-                        {diagnosticData && (
-                            <div className="space-y-6">
-                                {/* Summary Banner */}
-                                {diagnosticData.unmatchedWrestlers.length > 0 ? (
-                                    <div className="p-4 rounded-xl flex items-start gap-3" style={{ backgroundColor: 'var(--md-sys-color-error-container)', borderLeft: '4px solid var(--md-sys-color-error)' }}>
-                                        <span className="material-symbols-rounded filled" style={{ color: 'var(--md-sys-color-error)', fontSize: '28px' }}>error</span>
-                                        <div>
-                                            <h3 className="font-bold text-lg" style={{ color: 'var(--md-sys-color-on-error-container)' }}>
-                                                {diagnosticData.unmatchedWrestlers.length} wrestler(s) got ZERO matches
-                                            </h3>
-                                            <p className="text-sm mt-1" style={{ color: 'var(--md-sys-color-on-error-container)' }}>
-                                                These wrestlers could not be paired with anyone from another team within your current settings. 
-                                                See details below for which constraints blocked each wrestler.
-                                            </p>
-                                        </div>
+                    {/* Edit Wrestler Modal */}
+                    <Modal isOpen={showEditDialog} onClose={() => { setShowEditDialog(false); setEditData(null); }} title="Edit Wrestler" size="md">
+                        {editData && (
+                            <div className="space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block font-semibold mb-2">First Name *</label>
+                                        <input type="text" value={editData.firstName} onChange={(e) => setEditData(p => ({ ...p, firstName: e.target.value }))} className="md-text-field" />
                                     </div>
-                                ) : diagnosticData.lowMatchWrestlers.length > 0 ? (
-                                    <div className="p-4 rounded-xl flex items-start gap-3" style={{ backgroundColor: 'var(--md-sys-color-warning-container)', borderLeft: '4px solid var(--md-sys-color-warning)' }}>
-                                        <span className="material-symbols-rounded filled" style={{ color: '#b45309', fontSize: '28px' }}>warning</span>
-                                        <div>
-                                            <h3 className="font-bold text-lg" style={{ color: '#b45309' }}>
-                                                {diagnosticData.lowMatchWrestlers.length} wrestler(s) below minimum matches
-                                            </h3>
-                                            <p className="text-sm mt-1" style={{ color: '#92400e' }}>
-                                                These wrestlers got fewer than {diagnosticData.settings.minMatchesPerWrestler} match(es). 
-                                                Try adjusting settings or manually adding matches from the Teams tab.
-                                            </p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="p-4 rounded-xl flex items-start gap-3" style={{ backgroundColor: 'var(--md-sys-color-tertiary-container)', borderLeft: '4px solid var(--md-sys-color-tertiary)' }}>
-                                        <span className="material-symbols-rounded filled" style={{ color: 'var(--md-sys-color-tertiary)', fontSize: '28px' }}>check_circle</span>
-                                        <div>
-                                            <h3 className="font-bold text-lg" style={{ color: 'var(--md-sys-color-on-tertiary-container)' }}>
-                                                All wrestlers matched successfully!
-                                            </h3>
-                                            <p className="text-sm mt-1" style={{ color: 'var(--md-sys-color-on-tertiary-container)' }}>
-                                                Every wrestler has at least {diagnosticData.settings.minMatchesPerWrestler} match(es).
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {/* Current Settings Reference */}
-                                <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--md-sys-color-surface-container)' }}>
-                                    <h4 className="font-bold mb-2 flex items-center gap-2">
-                                        <span className="material-symbols-rounded" style={{ fontSize: '18px' }}>tune</span>
-                                        Active Constraints
-                                    </h4>
-                                    <div className="flex flex-wrap gap-3 text-sm">
-                                        <span className="px-3 py-1 rounded-full font-medium" style={{ backgroundColor: 'var(--md-sys-color-primary-container)', color: 'var(--md-sys-color-on-primary-container)' }}>
-                                            Max Weight: {diagnosticData.settings.maxWt}%
-                                        </span>
-                                        <span className="px-3 py-1 rounded-full font-medium" style={{ backgroundColor: 'var(--md-sys-color-primary-container)', color: 'var(--md-sys-color-on-primary-container)' }}>
-                                            Max Age Gap: {diagnosticData.settings.maxAge} yr
-                                        </span>
-                                        <span className="px-3 py-1 rounded-full font-medium" style={{ backgroundColor: 'var(--md-sys-color-primary-container)', color: 'var(--md-sys-color-on-primary-container)' }}>
-                                            Max Skill Gap: {diagnosticData.settings.maxSkill}
-                                        </span>
-                                        <span className="px-3 py-1 rounded-full font-medium" style={{ backgroundColor: 'var(--md-sys-color-secondary-container)', color: 'var(--md-sys-color-on-secondary-container)' }}>
-                                            Min Matches: {diagnosticData.settings.minMatchesPerWrestler}
-                                        </span>
+                                    <div>
+                                        <label className="block font-semibold mb-2">Last Name *</label>
+                                        <input type="text" value={editData.lastName} onChange={(e) => setEditData(p => ({ ...p, lastName: e.target.value }))} className="md-text-field" />
                                     </div>
                                 </div>
-                                
-                                {/* Team Overview */}
-                                <div>
-                                    <h4 className="font-bold text-lg mb-3 flex items-center gap-2">
-                                        <span className="material-symbols-rounded">groups</span>
-                                        Team Overview
-                                    </h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                                        {Object.entries(diagnosticData.teamDiag).map(([tk, td]) => {
-                                            const teamColor = colors[tk];
-                                            const hasIssues = td.unmatched > 0;
-                                            return (
-                                                <div key={tk} className="p-4 rounded-lg border-2" style={{ 
-                                                    borderColor: hasIssues ? 'var(--md-sys-color-error)' : teamColor,
-                                                    backgroundColor: hasIssues ? 'var(--md-sys-color-error-container)' : teamColor + '10'
-                                                }}>
-                                                    <div className="font-bold text-lg mb-2" style={{ color: teamColor }}>{td.name}</div>
-                                                    <div className="space-y-1 text-sm">
-                                                        <div className="flex justify-between">
-                                                            <span>Wrestlers:</span><span className="font-bold">{td.total}</span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span>Unmatched:</span>
-                                                            <span className={`font-bold ${td.unmatched > 0 ? 'text-red-600' : 'text-green-600'}`}>{td.unmatched}</span>
-                                                        </div>
-                                                        <div className="flex justify-between">
-                                                            <span>Avg Matches:</span><span className="font-bold">{td.avgMatches}</span>
-                                                        </div>
-                                                        <div className="mt-2 pt-2 border-t" style={{ borderColor: 'var(--md-sys-color-outline-variant)' }}>
-                                                            <div className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
-                                                                Weight: {td.weightRange} lbs
-                                                            </div>
-                                                            <div className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
-                                                                Ages: {td.ageRange} yrs
-                                                            </div>
-                                                            <div className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
-                                                                Skills: {td.skillRange}
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block font-semibold mb-2">Weight (lbs) *</label>
+                                        <input type="number" value={editData.weight} onChange={(e) => setEditData(p => ({ ...p, weight: e.target.value }))} className="md-text-field" />
+                                    </div>
+                                    <div>
+                                        <label className="block font-semibold mb-2">Date of Birth *</label>
+                                        <input type="date" value={editData.dob} onChange={(e) => setEditData(p => ({ ...p, dob: e.target.value }))} className="md-text-field" />
                                     </div>
                                 </div>
-                                
-                                {/* Unmatched Wrestlers Detail */}
-                                {diagnosticData.unmatchedWrestlers.length > 0 && (
+                                <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <h4 className="font-bold text-lg mb-3 flex items-center gap-2" style={{ color: 'var(--md-sys-color-error)' }}>
-                                            <span className="material-symbols-rounded filled">person_off</span>
-                                            Unmatched Wrestlers — Why They Failed
-                                        </h4>
-                                        <div className="space-y-4">
-                                            {diagnosticData.unmatchedWrestlers.map((w, idx) => {
-                                                const key = `${w.Name}-${w.Team}`;
-                                                const reasons = diagnosticData.rejectionReasons[key];
-                                                const c = getColor(w.Team);
-                                                const totalRejected = reasons.weight + reasons.age + reasons.skill;
-                                                
-                                                // Determine primary blocker
-                                                const blockers = [];
-                                                if (reasons.weight > 0) blockers.push({ reason: 'Weight', count: reasons.weight, pct: ((reasons.weight / reasons.totalCandidates) * 100).toFixed(0) });
-                                                if (reasons.age > 0) blockers.push({ reason: 'Age', count: reasons.age, pct: ((reasons.age / reasons.totalCandidates) * 100).toFixed(0) });
-                                                if (reasons.skill > 0) blockers.push({ reason: 'Skill', count: reasons.skill, pct: ((reasons.skill / reasons.totalCandidates) * 100).toFixed(0) });
-                                                blockers.sort((a, b) => b.count - a.count);
-                                                
-                                                return (
-                                                    <div key={idx} className="md-card-outlined p-4" style={{ borderLeftWidth: '4px', borderLeftColor: 'var(--md-sys-color-error)' }}>
-                                                        <div className="flex items-center gap-2 mb-3">
-                                                            <span className="text-xs font-bold px-2 py-0.5 rounded text-white" style={{ backgroundColor: c }}>{getAbbrev(w.Team)}</span>
-                                                            <span className="font-bold text-lg" style={{ color: c }}>{w.Name}</span>
-                                                            <span className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
-                                                                {w.Weight}lb • Age {w.Age} • Exp {w.Exp} • Skill {w.Skill}
-                                                            </span>
-                                                        </div>
-                                                        
-                                                        {/* Rejection breakdown */}
-                                                        <div className="mb-3">
-                                                            <div className="text-sm font-medium mb-2">
-                                                                Tested against {reasons.totalCandidates} opponent(s) from other teams — all rejected:
-                                                            </div>
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {blockers.map(b => (
-                                                                    <div key={b.reason} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={{ 
-                                                                        backgroundColor: b.reason === blockers[0].reason ? 'var(--md-sys-color-error-container)' : 'var(--md-sys-color-surface-container)',
-                                                                        border: b.reason === blockers[0].reason ? '1px solid var(--md-sys-color-error)' : '1px solid var(--md-sys-color-outline-variant)'
-                                                                    }}>
-                                                                        <span className="material-symbols-rounded" style={{ fontSize: '16px', color: b.reason === blockers[0].reason ? 'var(--md-sys-color-error)' : 'var(--md-sys-color-on-surface-variant)' }}>
-                                                                            {b.reason === 'Weight' ? 'fitness_center' : b.reason === 'Age' ? 'calendar_month' : 'star'}
-                                                                        </span>
-                                                                        <span className="text-sm">
-                                                                            <strong>{b.reason}</strong>: blocked {b.count} ({b.pct}%)
-                                                                        </span>
-                                                                        {b.reason === blockers[0].reason && (
-                                                                            <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: 'var(--md-sys-color-error)', color: 'white' }}>
-                                                                                PRIMARY
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {/* Closest near-misses */}
-                                                        {reasons.closestFails.length > 0 && (
-                                                            <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: 'var(--md-sys-color-surface-container)' }}>
-                                                                <div className="text-sm font-medium mb-2">Closest near-misses (would match with relaxed settings):</div>
-                                                                <div className="space-y-2">
-                                                                    {reasons.closestFails.map((cf, ci) => {
-                                                                        const oc = getColor(cf.wrestler.Team);
-                                                                        return (
-                                                                            <div key={ci} className="flex items-center gap-2 text-sm p-2 rounded" style={{ backgroundColor: 'var(--md-sys-color-surface)' }}>
-                                                                                <span className="text-xs font-bold px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: oc }}>{getAbbrev(cf.wrestler.Team)}</span>
-                                                                                <span className="font-medium" style={{ color: oc }}>{cf.wrestler.Name}</span>
-                                                                                <span className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
-                                                                                    ({cf.wrestler.Weight}lb, Age {cf.wrestler.Age}, S{cf.wrestler.Skill})
-                                                                                </span>
-                                                                                <span className="ml-auto flex gap-1">
-                                                                                    {cf.failReasons.map(r => (
-                                                                                        <span key={r} className="text-xs px-1.5 py-0.5 rounded font-semibold bg-red-100 text-red-700">
-                                                                                            {r === 'weight' ? `Wt: ${cf.wtPct.toFixed(1)}% > ${diagnosticData.settings.maxWt}%` : 
-                                                                                             r === 'age' ? `Age: ${cf.ageDiff}yr > ${diagnosticData.settings.maxAge}yr` : 
-                                                                                             `Skill: ${cf.skillDiff} > ${diagnosticData.settings.maxSkill}`}
-                                                                                        </span>
-                                                                                    ))}
-                                                                                </span>
-                                                                            </div>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                        <label className="block font-semibold mb-2">Experience (0-6)</label>
+                                        <select value={editData.exp} onChange={(e) => setEditData(p => ({ ...p, exp: e.target.value }))} className="md-text-field">
+                                            {[0,1,2,3,4,5,6].map(n => <option key={n} value={n}>{n} {n === 1 ? 'year' : 'years'}</option>)}
+                                        </select>
                                     </div>
-                                )}
-                                
-                                {/* Low Match Wrestlers */}
-                                {diagnosticData.lowMatchWrestlers.length > 0 && (
                                     <div>
-                                        <h4 className="font-bold text-lg mb-3 flex items-center gap-2" style={{ color: '#b45309' }}>
-                                            <span className="material-symbols-rounded filled">warning</span>
-                                            Below Minimum Matches (target: {diagnosticData.settings.minMatchesPerWrestler})
-                                        </h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                            {diagnosticData.lowMatchWrestlers.map((w, idx) => {
-                                                const c = getColor(w.Team);
-                                                return (
-                                                    <div key={idx} className="p-3 rounded-lg flex items-center justify-between" style={{ backgroundColor: 'var(--md-sys-color-warning-container)', borderLeft: `3px solid ${c}` }}>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-xs font-bold px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: c }}>{getAbbrev(w.Team)}</span>
-                                                            <span className="font-medium">{w.Name}</span>
-                                                            <span className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
-                                                                {w.Weight}lb • Age {w.Age} • S{w.Skill}
-                                                            </span>
-                                                        </div>
-                                                        <span className="text-sm font-bold px-2 py-1 rounded" style={{ backgroundColor: '#fbbf24', color: '#92400e' }}>
-                                                            {w.matchCount} / {diagnosticData.settings.minMatchesPerWrestler}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                        <label className="block font-semibold mb-2">Skill (1-5)</label>
+                                        <select value={editData.skill} onChange={(e) => setEditData(p => ({ ...p, skill: e.target.value }))} className="md-text-field">
+                                            {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
                                     </div>
-                                )}
-                                
-                                {/* Recommended Actions */}
-                                {(diagnosticData.unmatchedWrestlers.length > 0 || diagnosticData.lowMatchWrestlers.length > 0) && (
-                                    <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--md-sys-color-primary-container)', borderLeft: '4px solid var(--md-sys-color-primary)' }}>
-                                        <h4 className="font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
-                                            <span className="material-symbols-rounded">lightbulb</span>
-                                            Recommended Actions
-                                        </h4>
-                                        <div className="space-y-2 text-sm" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
-                                            {diagnosticData.unmatchedWrestlers.some(w => {
-                                                const key = `${w.Name}-${w.Team}`;
-                                                const r = diagnosticData.rejectionReasons[key];
-                                                return r.age > r.weight && r.age > r.skill;
-                                            }) && (
-                                                <div className="flex items-start gap-2">
-                                                    <span className="material-symbols-rounded" style={{ fontSize: '18px' }}>arrow_forward</span>
-                                                    <span><strong>Increase Max Age Difference</strong> — Age is the primary blocker for some wrestlers. Try increasing from {diagnosticData.settings.maxAge} to {diagnosticData.settings.maxAge + 1} year(s) in Settings.</span>
-                                                </div>
-                                            )}
-                                            {diagnosticData.unmatchedWrestlers.some(w => {
-                                                const key = `${w.Name}-${w.Team}`;
-                                                const r = diagnosticData.rejectionReasons[key];
-                                                return r.weight >= r.age && r.weight >= r.skill;
-                                            }) && (
-                                                <div className="flex items-start gap-2">
-                                                    <span className="material-symbols-rounded" style={{ fontSize: '18px' }}>arrow_forward</span>
-                                                    <span><strong>Increase Max Weight Difference</strong> — Weight is the primary blocker. Try increasing from {diagnosticData.settings.maxWt}% to {Math.min(diagnosticData.settings.maxWt + 3, 20)}% in Settings.</span>
-                                                </div>
-                                            )}
-                                            {diagnosticData.unmatchedWrestlers.some(w => {
-                                                const key = `${w.Name}-${w.Team}`;
-                                                const r = diagnosticData.rejectionReasons[key];
-                                                return r.skill > r.weight && r.skill > r.age;
-                                            }) && (
-                                                <div className="flex items-start gap-2">
-                                                    <span className="material-symbols-rounded" style={{ fontSize: '18px' }}>arrow_forward</span>
-                                                    <span><strong>Increase Max Skill Difference</strong> — Skill gap is the primary blocker. Try increasing from {diagnosticData.settings.maxSkill} to {diagnosticData.settings.maxSkill + 1} in Settings.</span>
-                                                </div>
-                                            )}
-                                            <div className="flex items-start gap-2">
-                                                <span className="material-symbols-rounded" style={{ fontSize: '18px' }}>arrow_forward</span>
-                                                <span><strong>Use the Teams tab</strong> to manually add matches for unmatched wrestlers using the "Suggested Opponents" panel (which shows expanded-criteria options).</span>
-                                            </div>
-                                            <div className="flex items-start gap-2">
-                                                <span className="material-symbols-rounded" style={{ fontSize: '18px' }}>arrow_forward</span>
-                                                <span><strong>Adjust settings and re-generate</strong> — Go to Settings tab, relax the constraint(s), then generate again.</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                <button onClick={() => setShowDiagnostics(false)} className="w-full md-filled-button">
-                                    Close
-                                </button>
+                                </div>
+                                <div className="flex gap-3 pt-4">
+                                    <button onClick={handleEditSave} className="flex-1 md-filled-button">Save Changes</button>
+                                    <button onClick={() => { setShowEditDialog(false); setEditData(null); }} className="flex-1 md-outlined-button">Cancel</button>
+                                </div>
                             </div>
                         )}
                     </Modal>
                     
-                    {/* Live Session Modal */}
-                    <Modal isOpen={showLiveDialog} onClose={() => setShowLiveDialog(false)} title="Live Session" size="md">
-                        <div className="text-center space-y-6">
-                            {liveSession ? (
-                                <>
-                                    <div className="flex items-center justify-center gap-2 text-green-600">
-                                        <span className="inline-block w-3 h-3 rounded-full animate-pulse bg-red-500"></span>
-                                        <span className="font-bold text-lg">LIVE</span>
-                                    </div>
-                                    
-                                    <div className="p-4 bg-gray-50 rounded-xl">
-                                        <p className="text-sm text-gray-600 mb-4">Scan QR code or share link with parents & table workers:</p>
-                                        {qrCodeUrl && (
-                                            <img src={qrCodeUrl} alt="QR Code" className="mx-auto mb-4 rounded-lg shadow-lg" />
-                                        )}
-                                        <div className="flex items-center gap-2 p-2 bg-white rounded border">
-                                            <input 
-                                                type="text" 
-                                                readOnly 
-                                                value={liveSession.viewerUrl} 
-                                                className="flex-1 text-xs font-mono bg-transparent outline-none"
-                                            />
-                                            <button onClick={copyLiveLink} className="md-text-button p-1">
-                                                <span className="material-symbols-rounded">content_copy</span>
-                                            </button>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="text-sm text-gray-500">
-                                        <p>Last updated: {liveSession.lastPush?.toLocaleTimeString()}</p>
-                                        <p className="mt-1">Viewers auto-refresh every 30 seconds</p>
-                                    </div>
-                                    
-                                    <div className="p-4 bg-blue-50 rounded-lg text-left">
-                                        <h4 className="font-bold text-blue-800 mb-2">How it works:</h4>
-                                        <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
-                                            <li>Share this QR code / link with viewers</li>
-                                            <li>Make changes to matches as needed</li>
-                                            <li>Click <strong>"Push Update"</strong> to sync changes</li>
-                                            <li>Viewers see updates within 30 seconds</li>
-                                        </ol>
-                                    </div>
-                                    
-                                    <div className="flex gap-3">
-                                        <button onClick={pushUpdate} disabled={isPushing} className="flex-1 md-filled-button" style={{ backgroundColor: '#ea4335' }}>
-                                            <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>{isPushing ? 'hourglass_empty' : 'publish'}</span>
-                                            {isPushing ? 'Pushing...' : 'Push Update'}
-                                        </button>
-                                        <button onClick={endLive} className="flex-1 md-outlined-button" style={{ borderColor: '#ea4335', color: '#ea4335' }}>
-                                            End Live
-                                        </button>
-                                    </div>
-                                </>
-                            ) : (
-                                <p className="text-gray-500">No active live session</p>
+                    {/* Search Opponent Modal */}
+                    <Modal isOpen={showSearchOpponent} onClose={() => { setShowSearchOpponent(false); setOpponentSearch(''); }} title={`Search Opponent for ${selected?.Name || ''}`} size="lg">
+                        <div className="space-y-4">
+                            <div className="p-3 rounded-lg" style={{ backgroundColor: 'var(--md-sys-color-surface-container)' }}>
+                                <p className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
+                                    Search by name or weight to find any wrestler from other teams. Results show match compatibility even if outside normal criteria.
+                                </p>
+                            </div>
+                            
+                            <input 
+                                type="text" 
+                                value={opponentSearch} 
+                                onChange={(e) => setOpponentSearch(e.target.value)} 
+                                placeholder="Search by name or weight..." 
+                                className="md-text-field" 
+                                autoFocus 
+                            />
+                            
+                            {opponentSearch.length >= 2 && selected && (
+                                <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
+                                    {searchAllOpponents(selected, opponentSearch).map(({ w, wtPct, ageDiff, expDiff, skillDiff, expanded, outsideCriteria, matchCount }) => {
+                                        const c = getColor(w.Team);
+                                        return (
+                                            <div 
+                                                key={`${w.Name}-${w.Team}`} 
+                                                onClick={() => addMatch(selected, w)} 
+                                                className={`match-card md-card-outlined p-4 cursor-pointer hover:shadow-lg ${outsideCriteria ? 'ring-2 ring-red-400' : expanded ? 'ring-2 ring-orange-400' : ''}`} 
+                                                style={outsideCriteria ? { backgroundColor: 'var(--md-sys-color-error-container)' } : expanded ? { backgroundColor: 'var(--md-sys-color-warning-container)' } : {}}
+                                            >
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    {outsideCriteria && <span className="material-symbols-rounded text-red-500" style={{ fontSize: '18px' }}>error</span>}
+                                                    {expanded && !outsideCriteria && <span className="material-symbols-rounded text-orange-500" style={{ fontSize: '18px' }}>warning</span>}
+                                                    <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
+                                                    <span className="font-bold text-lg" style={{ color: c }}>{w.Name}</span>
+                                                    <span className={`text-sm font-bold px-2 py-0.5 rounded-full ${matchCount === 0 ? 'bg-red-100 text-red-700' : matchCount < 2 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-200 text-gray-700'}`}>{matchCount} {matchCount === 1 ? 'match' : 'matches'}</span>
+                                                    {outsideCriteria && <span className="text-xs text-red-600 font-medium">Outside all criteria</span>}
+                                                    {expanded && !outsideCriteria && <span className="text-xs text-orange-600 font-medium">Expanded criteria</span>}
+                                                </div>
+                                                <StatsCompare w1={selected} w2={w} compact={false} />
+                                            </div>
+                                        );
+                                    })}
+                                    {searchAllOpponents(selected, opponentSearch).length === 0 && (
+                                        <p className="text-center py-4" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>No wrestlers found matching "{opponentSearch}"</p>
+                                    )}
+                                </div>
+                            )}
+                            
+                            {opponentSearch.length < 2 && (
+                                <p className="text-center py-8" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>
+                                    Type at least 2 characters to search
+                                </p>
                             )}
                         </div>
                     </Modal>
