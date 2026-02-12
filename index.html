@@ -9,6 +9,7 @@
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     
     <!-- Google Fonts and Material Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&family=Roboto:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -428,6 +429,49 @@
             );
         };
         
+        // Color Swatch Picker - Google Docs style
+        const TEAM_COLORS = [
+            '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#ffffff',
+            '#980000', '#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff', '#4a86e8', '#ff00ff',
+            '#e6b8af', '#f4cccc', '#fce5cd', '#fff2cc', '#d9ead3', '#d0e0e3', '#c9daf8', '#d9d2e9',
+            '#dd7e6b', '#ea9999', '#f9cb9c', '#ffe599', '#b6d7a8', '#a2c4c9', '#a4c2f4', '#b4a7d6',
+            '#cc4125', '#e06666', '#f6b26b', '#ffd966', '#93c47d', '#76a5af', '#6d9eeb', '#8e7cc3',
+            '#a61c00', '#cc0000', '#e69138', '#f1c232', '#6aa84f', '#45818e', '#3c78d8', '#674ea7',
+            '#85200c', '#990000', '#b45f06', '#bf9000', '#38761d', '#134f5c', '#1155cc', '#351c75',
+        ];
+        
+        const ColorPicker = ({ value, onChange }) => {
+            const [open, setOpen] = useState(false);
+            const ref = useRef(null);
+            useEffect(() => {
+                const handleClick = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+                document.addEventListener('mousedown', handleClick);
+                return () => document.removeEventListener('mousedown', handleClick);
+            }, []);
+            return (
+                <div className="relative" ref={ref}>
+                    <button onClick={() => setOpen(!open)} className="rounded-lg cursor-pointer border-2 transition-all hover:scale-105"
+                        style={{ width: '48px', height: '48px', backgroundColor: value, borderColor: 'var(--md-sys-color-outline-variant)', padding: 0 }} />
+                    {open && (
+                        <div className="absolute z-50 left-0 rounded-xl animate-fade-in"
+                            style={{ top: '56px', backgroundColor: 'var(--md-sys-color-surface)', boxShadow: 'var(--md-sys-elevation-3)', padding: '12px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 24px)', gap: '4px' }}>
+                                {TEAM_COLORS.map((c, i) => (
+                                    <button key={c + i} onClick={() => { onChange(c); setOpen(false); }}
+                                        style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: c,
+                                            border: c === '#ffffff' ? '1px solid #dadce0' : 'none', padding: 0, margin: 0,
+                                            cursor: 'pointer', outline: value === c ? '2px solid var(--md-sys-color-primary)' : 'none',
+                                            outlineOffset: '2px', transition: 'transform 0.15s ease' }}
+                                        onMouseEnter={e => e.target.style.transform = 'scale(1.2)'}
+                                        onMouseLeave={e => e.target.style.transform = 'scale(1)'} />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        
         // Stats Comparison Component - shows actual stats of both wrestlers with differences
         const StatsCompare = ({ w1, w2, compact = false }) => {
             const wtPct = ((Math.abs(w1.Weight - w2.Weight) / Math.min(w1.Weight, w2.Weight)) * 100);
@@ -464,15 +508,15 @@
                     </div>
                     <div className={`px-2 py-1 rounded text-center ${ageDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                         <div className="font-bold">{w1.Age} vs {w2.Age}</div>
-                        <div className="opacity-75">Age: ±{ageDiff}</div>
+                        <div className="opacity-75">Age: +/-{ageDiff}</div>
                     </div>
                     <div className={`px-2 py-1 rounded text-center ${expDiff <= 1 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                         <div className="font-bold">{w1.Exp || 1} vs {w2.Exp || 1}</div>
-                        <div className="opacity-75">Exp: ±{expDiff}</div>
+                        <div className="opacity-75">Exp: +/-{expDiff}</div>
                     </div>
                     <div className={`px-2 py-1 rounded text-center ${skillDiff === 0 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                         <div className="font-bold">{w1.Skill} vs {w2.Skill}</div>
-                        <div className="opacity-75">Skill: ±{skillDiff}</div>
+                        <div className="opacity-75">Skill: +/-{skillDiff}</div>
                     </div>
                 </div>
             );
@@ -483,7 +527,7 @@
             const [rosters, setRosters] = useState({ t1: [], t2: [], t3: [], t4: [] });
             const [names, setNames] = useState({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3', t4: 'Team 4' });
             const [abbrevs, setAbbrevs] = useState({ t1: 'T1', t2: 'T2', t3: 'T3', t4: 'T4' });
-            const [colors, setColors] = useState({ t1: '#1a73e8', t2: '#7c3aed', t3: '#1e8e3e', t4: '#e8710a' });
+            const [colors, setColors] = useState({ t1: '#4a86e8', t2: '#674ea7', t3: '#6aa84f', t4: '#e69138' });
             const [matches, setMatches] = useState([]);
             const [scratched, setScratched] = useState([]);
             const [settings, setSettings] = useState({ 
@@ -626,7 +670,7 @@
                 setRosters({ t1: [], t2: [], t3: [], t4: [] });
                 setNames({ t1: 'Team 1', t2: 'Team 2', t3: 'Team 3', t4: 'Team 4' });
                 setAbbrevs({ t1: 'T1', t2: 'T2', t3: 'T3', t4: 'T4' });
-                setColors({ t1: '#1a73e8', t2: '#7c3aed', t3: '#1e8e3e', t4: '#e8710a' });
+                setColors({ t1: '#4a86e8', t2: '#674ea7', t3: '#6aa84f', t4: '#e69138' });
                 setMatches([]);
                 setScratched([]);
                 setCurrentTournament('');
@@ -1276,45 +1320,88 @@
                 return false;
             };
             
-            const exportExcel = () => {
-                const wb = XLSX.utils.book_new();
+            const exportExcel = async () => {
+                const wb = new ExcelJS.Workbook();
+                const numMats = settings.numberOfMats || 3;
+                const hexToArgb = (hex) => 'FF' + hex.replace('#', '').toUpperCase();
+                const setColWidths = (ws, widths) => { widths.forEach((w, i) => { ws.getColumn(i + 1).width = w; }); };
+                const styleHeaderRow = (row) => {
+                    row.eachCell(cell => {
+                        cell.font = { bold: true, size: 11 };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EAED' } };
+                        cell.border = { bottom: { style: 'thin', color: { argb: 'FFDADCE0' } } };
+                    });
+                };
                 
                 ['t1', 't2', 't3', 't4'].forEach(tk => {
                     if (!rosters[tk].length) return;
-                    const data = [['Age', 'Weight', 'Skill', '', `${names[tk]} (${abbrevs[tk]})`]];
+                    const ws = wb.addWorksheet(names[tk].substring(0, 31));
+                    const teamArgb = hexToArgb(colors[tk]);
+                    const headerRow = ws.addRow(['Age', 'Weight', 'Skill', '', `${names[tk]} (${abbrevs[tk]})`, 'Match #', 'Opponent']);
+                    styleHeaderRow(headerRow);
+                    headerRow.getCell(5).font = { bold: true, size: 11, color: { argb: teamArgb } };
+                    headerRow.getCell(5).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8EAED' } };
+                    setColWidths(ws, [6, 8, 6, 2, 28, 8, 22]);
+                    
                     rosters[tk].sort((a, b) => (a.LastName || a.Name).localeCompare(b.LastName || b.Name)).forEach(w => {
                         const ms = getMatches(w).sort((a, b) => a.num - b.num);
-                        const row = [w.Age, w.Weight, w.Skill, '', `${w.LastName || w.Name.split(' ')[1]}, ${w.FirstName || w.Name.split(' ')[0]}`];
-                        ms.forEach(m => {
-                            const opp = m.w1.Name === w.Name ? m.w2 : m.w1;
-                            const oppTeamKey = Object.keys(names).find(k => names[k] === opp.Team);
-                            const oppAbbrev = oppTeamKey ? abbrevs[oppTeamKey] : 'XX';
-                            row.push(m.num, `${oppAbbrev}-${opp.FirstName?.charAt(0) || opp.Name.charAt(0)} ${opp.LastName || opp.Name.split(' ')[1] || ''}`);
-                        });
-                        data.push(row);
+                        if (ms.length === 0) {
+                            const row = ws.addRow([w.Age, w.Weight, w.Skill, '', `${w.LastName || w.Name.split(' ')[1]}, ${w.FirstName || w.Name.split(' ')[0]}`]);
+                            row.getCell(5).font = { bold: true, color: { argb: teamArgb } };
+                        } else {
+                            ms.forEach((m, mIdx) => {
+                                const opp = m.w1.Name === w.Name ? m.w2 : m.w1;
+                                const oppTeamKey = Object.keys(names).find(k => names[k] === opp.Team);
+                                const oppAbbrev = oppTeamKey ? abbrevs[oppTeamKey] : 'XX';
+                                const oppArgb = hexToArgb(oppTeamKey ? colors[oppTeamKey] : '#5f6368');
+                                const row = ws.addRow([
+                                    mIdx === 0 ? w.Age : '', mIdx === 0 ? w.Weight : '', mIdx === 0 ? w.Skill : '', '',
+                                    mIdx === 0 ? `${w.LastName || w.Name.split(' ')[1]}, ${w.FirstName || w.Name.split(' ')[0]}` : '',
+                                    m.num, `${oppAbbrev}-${opp.FirstName?.charAt(0) || opp.Name.charAt(0)} ${opp.LastName || opp.Name.split(' ')[1] || ''}`
+                                ]);
+                                if (mIdx === 0) row.getCell(5).font = { bold: true, color: { argb: teamArgb } };
+                                row.getCell(6).font = { color: { argb: teamArgb } };
+                                row.getCell(7).font = { bold: true, color: { argb: oppArgb } };
+                            });
+                        }
                     });
-                    const ws = XLSX.utils.aoa_to_sheet(data);
-                    ws['!cols'] = [{ wch: 5 }, { wch: 8 }, { wch: 5 }, { wch: 2 }, { wch: 25 }, { wch: 8 }, { wch: 18 }];
-                    XLSX.utils.book_append_sheet(wb, ws, names[tk].substring(0, 31));
                 });
                 
-                for (let mat = 1; mat <= (settings.numberOfMats || 3); mat++) {
+                for (let mat = 1; mat <= numMats; mat++) {
                     const ms = matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order);
                     if (!ms.length) continue;
-                    const data = [['#', 'Team 1', 'Wrestler 1', 'Wt', 'vs', 'Team 2', 'Wrestler 2', 'Wt', 'Wt%', 'Winner']];
+                    const ws = wb.addWorksheet(`Mat ${mat}`);
+                    const headerRow = ws.addRow(['#', 'Team', 'Wrestler 1', 'Wt', 'vs', 'Team', 'Wrestler 2', 'Wt', 'Wt%', 'Winner']);
+                    styleHeaderRow(headerRow);
+                    setColWidths(ws, [6, 6, 22, 6, 4, 6, 22, 6, 7, 16]);
                     ms.forEach(m => {
-                        data.push([m.num, abbrevs[Object.keys(names).find(k => names[k] === m.w1.Team)] || 'XX', 
+                        const w1tk = Object.keys(names).find(k => names[k] === m.w1.Team);
+                        const w2tk = Object.keys(names).find(k => names[k] === m.w2.Team);
+                        const w1a = hexToArgb(w1tk ? colors[w1tk] : '#5f6368');
+                        const w2a = hexToArgb(w2tk ? colors[w2tk] : '#5f6368');
+                        const row = ws.addRow([
+                            m.num, w1tk ? abbrevs[w1tk] : 'XX',
                             `${m.w1.LastName || m.w1.Name}, ${m.w1.FirstName || ''}`, m.w1.Weight, 'vs',
-                            abbrevs[Object.keys(names).find(k => names[k] === m.w2.Team)] || 'XX',
-                            `${m.w2.LastName || m.w2.Name}, ${m.w2.FirstName || ''}`, m.w2.Weight, `${m.wtPct.toFixed(1)}%`, '']);
+                            w2tk ? abbrevs[w2tk] : 'XX',
+                            `${m.w2.LastName || m.w2.Name}, ${m.w2.FirstName || ''}`, m.w2.Weight,
+                            `${m.wtPct.toFixed(1)}%`, ''
+                        ]);
+                        row.getCell(2).font = { bold: true, color: { argb: w1a } };
+                        row.getCell(3).font = { bold: true, color: { argb: w1a } };
+                        row.getCell(4).font = { color: { argb: w1a } };
+                        row.getCell(6).font = { bold: true, color: { argb: w2a } };
+                        row.getCell(7).font = { bold: true, color: { argb: w2a } };
+                        row.getCell(8).font = { color: { argb: w2a } };
                     });
-                    const ws = XLSX.utils.aoa_to_sheet(data);
-                    ws['!cols'] = [{ wch: 5 }, { wch: 6 }, { wch: 20 }, { wch: 5 }, { wch: 3 }, { wch: 6 }, { wch: 20 }, { wch: 5 }, { wch: 6 }, { wch: 15 }];
-                    XLSX.utils.book_append_sheet(wb, ws, `Mat ${mat}`);
                 }
                 
-                XLSX.writeFile(wb, 'wrestling_matches.xlsx');
-                showToast('Exported to Excel', 'success');
+                const buffer = await wb.xlsx.writeBuffer();
+                const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'wrestling_matches.xlsx'; a.click();
+                URL.revokeObjectURL(url);
+                showToast('Exported to Excel with team colors!', 'success');
             };
             
             const getFilteredRoster = (tk) => {
@@ -1582,7 +1669,7 @@
                                                             <div key={idx} className="wrestler-card p-3 rounded-lg flex justify-between items-center" style={{ backgroundColor: 'var(--md-sys-color-surface-container)', borderLeft: `3px solid ${colors[tk]}` }}>
                                                                 <div>
                                                                     <div className="font-semibold" style={{ color: colors[tk] }}>{w.Name}</div>
-                                                                    <div className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb • Age {w.Age} • Exp {w.Exp} • Skill {w.Skill}</div>
+                                                                    <div className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb | Age {w.Age} | Exp {w.Exp} | Skill {w.Skill}</div>
                                                                 </div>
                                                                 <div className="flex gap-1">
                                                                     <button onClick={() => openEditDialog(w, tk)} className="md-text-button p-1" title="Edit">
@@ -1698,7 +1785,7 @@
                                                                 <div className="flex items-center gap-2">
                                                                     <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
                                                                     <span className="font-bold" style={{ color: c }}>{w.Name}</span>
-                                                                    <span className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb • {w.Age}y • E{w.Exp} • S{w.Skill}</span>
+                                                                    <span className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight}lb | {w.Age}y | E{w.Exp} | S{w.Skill}</span>
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-2">
@@ -1743,7 +1830,7 @@
                                                                     <span className="material-symbols-rounded" style={{ marginRight: '8px', verticalAlign: 'middle' }}>sports_kabaddi</span>
                                                                     Suggested Opponents for {selected.Name}
                                                                 </h3>
-                                                                <p className="text-sm" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>Click to add match • Sorted by fewest matches first</p>
+                                                                <p className="text-sm" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>Click to add match | Sorted by fewest matches first</p>
                                                             </div>
                                                             <button onClick={() => setShowSearchOpponent(true)} className="md-outlined-button" style={{ borderColor: 'var(--md-sys-color-on-primary-container)', color: 'var(--md-sys-color-on-primary-container)' }}>
                                                                 <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>search</span>Search All
@@ -1941,7 +2028,7 @@
                         <div className="space-y-6">
                             {['t1', 't2', 't3', 't4'].map(tk => (
                                 <div key={tk} className="flex items-center gap-4">
-                                    <input type="color" value={colors[tk]} onChange={(e) => setColors(p => ({ ...p, [tk]: e.target.value }))} className="w-12 h-12 rounded-lg cursor-pointer border-2" style={{ borderColor: 'var(--md-sys-color-outline-variant)' }} />
+                                    <ColorPicker value={colors[tk]} onChange={(c) => setColors(p => ({ ...p, [tk]: c }))} />
                                     <div className="flex-1">
                                         <label className="block text-sm font-semibold mb-1" style={{ color: colors[tk] }}>Team {tk.replace('t', '')} Name</label>
                                         <input type="text" value={names[tk]} onChange={(e) => handleTeamNameChange(tk, e.target.value)} className="md-text-field" />
@@ -2045,7 +2132,7 @@
                                                     <span className="text-xs font-bold px-2 py-0.5 rounded" style={{ backgroundColor: c, color: 'white' }}>{getAbbrev(w.Team)}</span>
                                                     <div className="font-semibold text-lg" style={{ color: c }}>{w.Name}</div>
                                                 </div>
-                                                <div className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight} lbs • Age {w.Age} • Exp {w.Exp} • Skill {w.Skill}</div>
+                                                <div className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{w.Weight} lbs | Age {w.Age} | Exp {w.Exp} | Skill {w.Skill}</div>
                                             </div>
                                             <button onClick={() => restoreWrestler(w)} className="md-filled-button" style={{ backgroundColor: 'var(--md-sys-color-tertiary)' }}>
                                                 <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>restore</span>Restore
