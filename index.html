@@ -335,6 +335,14 @@
             .print-only { display: block !important; }
         }
         .print-only { display: none; }
+        
+        /* Conflict Timeline */
+        .timeline-row { display: flex; align-items: center; border-bottom: 1px solid var(--md-sys-color-outline-variant); }
+        .timeline-cell { min-width: 36px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 600; border-right: 1px solid var(--md-sys-color-outline-variant); flex-shrink: 0; }
+        .timeline-name { width: 140px; min-width: 140px; padding: 0 6px; font-size: 11px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-right: 2px solid var(--md-sys-color-outline); }
+        .timeline-cell.bout { border-radius: 4px; margin: 2px; }
+        .timeline-cell.rest-violation { animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red { 0%,100% { box-shadow: 0 0 0 0 rgba(217,48,37,0.4); } 50% { box-shadow: 0 0 0 3px rgba(217,48,37,0.2); } }
     </style>
 </head>
 <body>
@@ -342,6 +350,14 @@
     
     <script type="text/babel">
         const { useState, useCallback, useEffect, useRef, useMemo } = React;
+        
+        // FIX #6: Stable unique IDs for wrestlers (prevents name collision bugs)
+        let _nextWrestlerId = 1;
+        const genId = () => `w_${_nextWrestlerId++}_${Date.now().toString(36)}`;
+        // FIX #4: Global match ID counter (prevents mat*100+index collisions with >99 matches)
+        let _nextMatchId = 1;
+        const genMatchId = () => _nextMatchId++;
+        const resetMatchIdCounter = () => { _nextMatchId = 1; };
         
         // Toast Component
         const Toast = ({ message, type = 'success', onClose }) => {
@@ -522,6 +538,87 @@
             );
         };
         
+        // === Conflict Timeline Visualizer ===
+        const ConflictTimeline = ({ matches, slotMap, settings, getColor, getAbbrev, needsRestHighlight }) => {
+            const wrestlers = useMemo(() => {
+                const map = new Map();
+                matches.forEach(m => { if (!map.has(m.w1.id)) map.set(m.w1.id, m.w1); if (!map.has(m.w2.id)) map.set(m.w2.id, m.w2); });
+                return [...map.values()].sort((a, b) => (a.LastName || a.Name).localeCompare(b.LastName || b.Name));
+            }, [matches]);
+            const maxSlot = useMemo(() => Math.max(...[...slotMap.values()], 0), [slotMap]);
+            
+            // Find wrestlers with violations
+            const violators = useMemo(() => wrestlers.filter(w => {
+                const wm = matches.filter(m => m.w1.id === w.id || m.w2.id === w.id);
+                return wm.some(m => needsRestHighlight(w, m.id));
+            }), [wrestlers, matches, needsRestHighlight]);
+            
+            const displayWrestlers = violators.length > 0 ? violators : wrestlers.slice(0, 20);
+            
+            if (!matches.length) return null;
+            
+            return (
+                <div className="space-y-3">
+                    {violators.length === 0 && (
+                        <div className="p-3 rounded-lg flex items-center gap-2" style={{ backgroundColor: 'var(--md-sys-color-tertiary-container)' }}>
+                            <span className="material-symbols-rounded filled" style={{ color: 'var(--md-sys-color-tertiary)' }}>check_circle</span>
+                            <span className="font-medium" style={{ color: 'var(--md-sys-color-on-tertiary-container)' }}>No rest violations detected! Showing first 20 wrestlers.</span>
+                        </div>
+                    )}
+                    {violators.length > 0 && (
+                        <div className="p-3 rounded-lg flex items-center gap-2" style={{ backgroundColor: 'var(--md-sys-color-error-container)' }}>
+                            <span className="material-symbols-rounded" style={{ color: 'var(--md-sys-color-error)' }}>warning</span>
+                            <span className="font-medium" style={{ color: 'var(--md-sys-color-on-error-container)' }}>{violators.length} wrestler{violators.length !== 1 ? 's' : ''} with rest violations. Pulsing red = insufficient rest.</span>
+                        </div>
+                    )}
+                    <div className="overflow-x-auto custom-scrollbar rounded-lg border" style={{ borderColor: 'var(--md-sys-color-outline-variant)' }}>
+                        <div style={{ minWidth: `${160 + (maxSlot + 1) * 38}px` }}>
+                            <div className="timeline-row" style={{ backgroundColor: 'var(--md-sys-color-surface-container)', position: 'sticky', top: 0, zIndex: 1 }}>
+                                <div className="timeline-name font-bold text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Wrestler</div>
+                                {Array.from({ length: maxSlot + 1 }, (_, i) => (
+                                    <div key={i} className="timeline-cell text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{i + 1}</div>
+                                ))}
+                            </div>
+                            {displayWrestlers.map(w => {
+                                const wm = matches.filter(m => m.w1.id === w.id || m.w2.id === w.id);
+                                const slotData = new Map();
+                                wm.forEach(m => {
+                                    const opp = m.w1.id === w.id ? m.w2 : m.w1;
+                                    slotData.set(slotMap.get(m.id), { match: m, opp, hasViolation: needsRestHighlight(w, m.id) });
+                                });
+                                const c = getColor(w.Team);
+                                return (
+                                    <div key={w.id} className="timeline-row">
+                                        <div className="timeline-name" style={{ color: c, borderLeft: `3px solid ${c}` }}>
+                                            <span className="font-bold text-xs px-1 rounded mr-1" style={{ backgroundColor: c, color: 'white', fontSize: '9px' }}>{getAbbrev(w.Team)}</span>
+                                            {w.LastName || w.Name.split(' ')[1] || w.Name}
+                                        </div>
+                                        {Array.from({ length: maxSlot + 1 }, (_, i) => {
+                                            const d = slotData.get(i);
+                                            if (!d) return <div key={i} className="timeline-cell"></div>;
+                                            const oc = getColor(d.opp.Team);
+                                            return (
+                                                <div key={i} className={`timeline-cell bout ${d.hasViolation ? 'rest-violation' : ''}`}
+                                                    style={{
+                                                        backgroundColor: d.hasViolation ? '#fce8e6' : oc + '30',
+                                                        color: d.hasViolation ? 'var(--md-sys-color-error)' : oc,
+                                                        border: d.hasViolation ? '2px solid var(--md-sys-color-error)' : `1px solid ${oc}`
+                                                    }}
+                                                    title={`vs ${d.opp.Name} (Mat ${d.match.mat})${d.hasViolation ? ' ⚠ REST VIOLATION' : ''}`}>
+                                                    M{d.match.mat}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                    <p className="text-xs" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>Each column = one match slot in the global timeline. Colored cells show which mat a wrestler is on. Matches at the same order position across different mats occupy adjacent slots.</p>
+                </div>
+            );
+        };
+        
         const App = () => {
             // State from Premium v2
             const [rosters, setRosters] = useState({ t1: [], t2: [], t3: [], t4: [] });
@@ -564,6 +661,56 @@
             const [showAnalytics, setShowAnalytics] = useState(false);
             const [showEditDialog, setShowEditDialog] = useState(false);
             const [showSearchOpponent, setShowSearchOpponent] = useState(false);
+            const [showTimeline, setShowTimeline] = useState(false);
+            const [showShareDialog, setShowShareDialog] = useState(false);
+            const [shareUrl, setShareUrl] = useState('');
+            
+            // === URL-based sharing: compress state to base64 URL ===
+            const generateShareUrl = () => {
+                try {
+                    const state = { rosters, names, abbrevs, colors, matches, scratched, settings };
+                    const json = JSON.stringify(state);
+                    // Use built-in compression via encodeURIComponent + btoa
+                    const encoded = btoa(unescape(encodeURIComponent(json)));
+                    const url = `${window.location.origin}${window.location.pathname}?t=${encoded}`;
+                    setShareUrl(url);
+                    setShowShareDialog(true);
+                } catch (e) {
+                    showToast('Tournament too large to share via URL', 'error');
+                }
+            };
+            
+            // Load from URL on mount
+            useEffect(() => {
+                try {
+                    const params = new URLSearchParams(window.location.search);
+                    const encoded = params.get('t');
+                    if (encoded) {
+                        const json = decodeURIComponent(escape(atob(encoded)));
+                        const data = JSON.parse(json);
+                        const migrateRoster = (roster) => (roster || []).map(w => w.id ? w : { ...w, id: genId() });
+                        const mr = { t1: migrateRoster(data.rosters?.t1), t2: migrateRoster(data.rosters?.t2), t3: migrateRoster(data.rosters?.t3), t4: migrateRoster(data.rosters?.t4) };
+                        setRosters(mr);
+                        if (data.names) setNames(data.names);
+                        if (data.abbrevs) setAbbrevs(data.abbrevs);
+                        if (data.colors) setColors(data.colors);
+                        if (data.settings) setSettings(data.settings);
+                        if (data.scratched) setScratched(data.scratched.map(w => w.id ? w : { ...w, id: genId() }));
+                        const allW = [...mr.t1, ...mr.t2, ...mr.t3, ...mr.t4];
+                        if (data.matches) {
+                            setMatches(data.matches.map(m => {
+                                const w1 = allW.find(w => w.Name === m.w1?.Name && w.Team === m.w1?.Team) || { ...m.w1, id: m.w1?.id || genId() };
+                                const w2 = allW.find(w => w.Name === m.w2?.Name && w.Team === m.w2?.Team) || { ...m.w2, id: m.w2?.id || genId() };
+                                return { ...m, id: m.id || genMatchId(), w1, w2 };
+                            }));
+                            setTab('mats');
+                        }
+                        // Clean URL
+                        window.history.replaceState({}, '', window.location.pathname);
+                        showToast('Tournament loaded from shared link!', 'success');
+                    }
+                } catch (e) { /* ignore bad URL params */ }
+            }, []);
             const [pasteText, setPasteText] = useState('');
             
             const [pasteTeam, setPasteTeam] = useState('t1');
@@ -571,6 +718,8 @@
             const [manualData, setManualData] = useState({ firstName: '', lastName: '', weight: '', dob: '', exp: '0', skill: '1', team: 't1' });
             const [editData, setEditData] = useState(null);
             const [opponentSearch, setOpponentSearch] = useState('');
+            const [showDiagnostic, setShowDiagnostic] = useState(false);
+            const [diagnosticWrestler, setDiagnosticWrestler] = useState(null);
             
             const total = rosters.t1.length + rosters.t2.length + rosters.t3.length + rosters.t4.length;
             
@@ -645,12 +794,26 @@
                 const saved = JSON.parse(localStorage.getItem('wrestlingTournaments') || '{}');
                 if (saved[name]) {
                     const data = saved[name];
-                    setRosters(data.rosters);
+                    // FIX #6: Migrate loaded wrestlers to have IDs if missing
+                    const migrateRoster = (roster) => (roster || []).map(w => w.id ? w : { ...w, id: genId() });
+                    const migratedRosters = {
+                        t1: migrateRoster(data.rosters.t1),
+                        t2: migrateRoster(data.rosters.t2),
+                        t3: migrateRoster(data.rosters.t3),
+                        t4: migrateRoster(data.rosters.t4)
+                    };
+                    setRosters(migratedRosters);
                     setNames(data.names);
                     setAbbrevs(data.abbrevs || { t1: 'T1', t2: 'T2', t3: 'T3', t4: 'T4' });
                     setColors(data.colors);
-                    setMatches(data.matches);
-                    setScratched(data.scratched || []);
+                    // Migrate matches to link to migrated wrestlers with IDs
+                    const allW = [...migratedRosters.t1, ...migratedRosters.t2, ...migratedRosters.t3, ...migratedRosters.t4];
+                    setMatches((data.matches || []).map(m => {
+                        const w1 = allW.find(w => w.Name === m.w1.Name && w.Team === m.w1.Team) || { ...m.w1, id: m.w1.id || genId() };
+                        const w2 = allW.find(w => w.Name === m.w2.Name && w.Team === m.w2.Team) || { ...m.w2, id: m.w2.id || genId() };
+                        return { ...m, id: m.id || genMatchId(), w1, w2 };
+                    }));
+                    setScratched((data.scratched || []).map(w => w.id ? w : { ...w, id: genId() }));
                     setSettings(data.settings);
                     setCurrentTournament(name);
                     showToast(`Loaded "${name}"`, 'success');
@@ -687,58 +850,45 @@
                 const result = [];
                 for (let mat = 1; mat <= 4; mat++) {
                     byMat[mat].sort((a, b) => (a.order || 0) - (b.order || 0)).forEach((m, i) => {
-                        result.push({ ...m, num: mat * 100 + i, order: i });
+                        result.push({ ...m, displayNum: mat * 100 + i, num: m.id || mat * 100 + i, order: i });
                     });
                 }
                 return result;
             };
             
-            const calcAge = (dob) => {
-                // Parse date components to avoid timezone issues
+            // FIX #5: Shared date component parser — avoids timezone bugs from new Date()
+            const parseDateComponents = (dob) => {
                 let year, month, day;
-                
                 if (typeof dob === 'string') {
                     if (dob.includes('/')) {
-                        // MM/DD/YYYY or M/D/YYYY format
-                        const parts = dob.split('/');
-                        month = parseInt(parts[0]);
-                        day = parseInt(parts[1]);
-                        year = parseInt(parts[2]);
+                        const p = dob.split('/'); month = parseInt(p[0]); day = parseInt(p[1]); year = parseInt(p[2]);
                     } else if (dob.includes('-')) {
-                        // YYYY-MM-DD format (ISO)
-                        const parts = dob.split('-');
-                        year = parseInt(parts[0]);
-                        month = parseInt(parts[1]);
-                        day = parseInt(parts[2]);
+                        const p = dob.split('-'); year = parseInt(p[0]); month = parseInt(p[1]); day = parseInt(p[2]);
                     } else {
-                        // Fallback - try to parse and extract components
-                        const d = new Date(dob);
-                        year = d.getFullYear();
-                        month = d.getMonth() + 1;
-                        day = d.getDate();
+                        const d = new Date(dob); year = d.getFullYear(); month = d.getMonth()+1; day = d.getDate();
                     }
-                } else if (dob instanceof Date) {
-                    year = dob.getFullYear();
-                    month = dob.getMonth() + 1;
-                    day = dob.getDate();
                 } else {
-                    // Fallback
-                    const d = new Date(dob);
-                    year = d.getFullYear();
-                    month = d.getMonth() + 1;
-                    day = d.getDate();
+                    const d = new Date(dob); year = d.getFullYear(); month = d.getMonth()+1; day = d.getDate();
                 }
-                
-                const today = new Date();
-                const todayYear = today.getFullYear();
-                const todayMonth = today.getMonth() + 1;
-                const todayDay = today.getDate();
-                
-                let age = todayYear - year;
-                if (todayMonth < month || (todayMonth === month && todayDay < day)) {
-                    age--;
-                }
+                return { year, month, day };
+            };
+            
+            const calcAge = (dob) => {
+                const { year, month, day } = parseDateComponents(dob);
+                const t = new Date();
+                let age = t.getFullYear() - year;
+                if ((t.getMonth()+1) < month || ((t.getMonth()+1) === month && t.getDate() < day)) age--;
                 return age;
+            };
+            
+            // FIX #5: Validate DOB via component parsing, not new Date()
+            const isValidDate = (dob) => {
+                try {
+                    const { year, month, day } = parseDateComponents(dob);
+                    if (isNaN(year)||isNaN(month)||isNaN(day)) return false;
+                    if (month<1||month>12||day<1||day>31||year<1900||year>2100) return false;
+                    return true;
+                } catch { return false; }
             };
             
             const parseData = (text) => {
@@ -796,9 +946,8 @@
                         return; 
                     }
                     
-                    // Validate DOB
-                    const dobDate = new Date(dob);
-                    if (isNaN(dobDate.getTime())) { 
+                    // FIX #5: Validate DOB via component parsing
+                    if (!isValidDate(dob)) { 
                         errors.push(`Row ${index + 1}: Invalid date "${dob}"`); 
                         return; 
                     }
@@ -818,7 +967,7 @@
                     }
                     
                     const age = calcAge(dob);
-                    validRows.push({ FirstName: firstName, LastName: lastName, Weight: weightVal, DOB: dob, Exp: expVal, Skill: skillVal, Age: age, Name: `${firstName} ${lastName}` });
+                    validRows.push({ id: genId(), FirstName: firstName, LastName: lastName, Weight: weightVal, DOB: dob, Exp: expVal, Skill: skillVal, Age: age, Name: `${firstName} ${lastName}` });
                 });
                 
                 return { data: validRows, errors, warnings };
@@ -902,6 +1051,7 @@
                 }
                 
                 const wrestler = {
+                    id: genId(),
                     FirstName: manualData.firstName,
                     LastName: manualData.lastName,
                     Name: `${manualData.firstName} ${manualData.lastName}`,
@@ -961,23 +1111,23 @@
                     Skill: parseInt(editData.skill)
                 };
                 
-                // Update in roster
+                // FIX #6: Update by id instead of name
                 setRosters(prev => ({
                     ...prev,
                     [editData.teamKey]: prev[editData.teamKey].map(w => 
-                        w.Name === editData.original.Name ? updatedWrestler : w
+                        w.id === editData.original.id ? updatedWrestler : w
                     )
                 }));
                 
                 // Update in matches
                 setMatches(prev => prev.map(m => ({
                     ...m,
-                    w1: (m.w1.Name === editData.original.Name && m.w1.Team === editData.original.Team) ? updatedWrestler : m.w1,
-                    w2: (m.w2.Name === editData.original.Name && m.w2.Team === editData.original.Team) ? updatedWrestler : m.w2
+                    w1: m.w1.id === editData.original.id ? updatedWrestler : m.w1,
+                    w2: m.w2.id === editData.original.id ? updatedWrestler : m.w2
                 })));
                 
                 // Update selected if it's the same wrestler
-                if (selected?.Name === editData.original.Name && selected?.Team === editData.original.Team) {
+                if (selected?.id === editData.original.id) {
                     setSelected(updatedWrestler);
                 }
                 
@@ -988,27 +1138,26 @@
             
             const scratchWrestler = (wrestler) => {
                 const team = Object.keys(names).find(k => names[k] === wrestler.Team);
-                setRosters(prev => ({ ...prev, [team]: prev[team].filter(w => w.Name !== wrestler.Name) }));
+                setRosters(prev => ({ ...prev, [team]: prev[team].filter(w => w.id !== wrestler.id) }));
                 const updatedMatches = matches.filter(m => 
-                    !(m.w1.Name === wrestler.Name && m.w1.Team === wrestler.Team) &&
-                    !(m.w2.Name === wrestler.Name && m.w2.Team === wrestler.Team)
+                    m.w1.id !== wrestler.id && m.w2.id !== wrestler.id
                 );
                 setMatches(renumber(updatedMatches));
                 setScratched(prev => [...prev, wrestler]);
-                if (selected?.Name === wrestler.Name) setSelected(null);
+                if (selected?.id === wrestler.id) setSelected(null);
                 showToast(`${wrestler.Name} scratched`, 'warning');
             };
             
             const restoreWrestler = (wrestler) => {
                 const team = Object.keys(names).find(k => names[k] === wrestler.Team);
                 setRosters(prev => ({ ...prev, [team]: [...prev[team], wrestler] }));
-                setScratched(prev => prev.filter(w => !(w.Name === wrestler.Name && w.Team === wrestler.Team)));
+                setScratched(prev => prev.filter(w => w.id !== wrestler.id));
                 showToast(`${wrestler.Name} restored`, 'success');
             };
             
             const deleteWrestler = (wrestler, teamKey) => {
                 if (confirm(`Delete ${wrestler.Name} permanently?`)) {
-                    setRosters(prev => ({ ...prev, [teamKey]: prev[teamKey].filter(w => w.Name !== wrestler.Name) }));
+                    setRosters(prev => ({ ...prev, [teamKey]: prev[teamKey].filter(w => w.id !== wrestler.id) }));
                     showToast(`${wrestler.Name} deleted`, 'info');
                 }
             };
@@ -1058,10 +1207,11 @@
                 return { score: wtScore + skillDiff * 1.5 + ageDiff * 0.5, wtPct, wtDiff, ageDiff, skillDiff, expDiff, expanded };
             };
             
+            // FIX #1: Equity-first generation + FIX #6: id-based tracking
             const generate = () => {
                 const all = [...rosters.t1, ...rosters.t2, ...rosters.t3, ...rosters.t4];
                 const counts = {};
-                all.forEach(w => counts[`${w.Name}-${w.Team}`] = 0);
+                all.forEach(w => counts[w.id] = 0);
                 
                 const possible = [];
                 for (let i = 0; i < all.length; i++) {
@@ -1070,8 +1220,6 @@
                         if (q) {
                             possible.push({ 
                                 w1: all[i], w2: all[j], 
-                                w1Key: `${all[i].Name}-${all[i].Team}`, 
-                                w2Key: `${all[j].Name}-${all[j].Team}`,
                                 avgSkill: (all[i].Skill + all[j].Skill) / 2,
                                 ...q 
                             });
@@ -1083,9 +1231,6 @@
                 const assignMat = (match, matCounts) => {
                     const skill = match.avgSkill;
                     const numMats = settings.numberOfMats || 3;
-                    
-                    // Create mat preference order based on skill
-                    // Lower skill -> lower mat numbers, higher skill -> higher mat numbers
                     let matOrder = [];
                     if (numMats === 2) {
                         matOrder = skill <= 2.5 ? [1, 2] : [2, 1];
@@ -1093,14 +1238,12 @@
                         if (skill <= 1.5) matOrder = [1, 2, 3];
                         else if (skill <= 3.5) matOrder = [2, 1, 3];
                         else matOrder = [3, 2, 1];
-                    } else { // 4 mats
+                    } else {
                         if (skill <= 1.5) matOrder = [1, 2, 3, 4];
                         else if (skill <= 2.5) matOrder = [2, 1, 3, 4];
                         else if (skill <= 3.5) matOrder = [3, 2, 4, 1];
                         else matOrder = [4, 3, 2, 1];
                     }
-                    
-                    // Find first available mat
                     for (const mat of matOrder) {
                         if (matCounts[mat] < settings.maxPerMat) return mat;
                     }
@@ -1111,42 +1254,54 @@
                 const matCounts = {};
                 for (let i = 1; i <= (settings.numberOfMats || 3); i++) matCounts[i] = 0;
                 
-                // First pass: ensure everyone gets at least one match
-                for (const m of possible) {
-                    if (counts[m.w1Key] >= 3 || counts[m.w2Key] >= 3) continue;
-                    if (counts[m.w1Key] === 0 || counts[m.w2Key] === 0) {
-                        const mat = assignMat(m, matCounts);
-                        if (mat) {
-                            result.push({ ...m, mat, num: mat * 100 + matCounts[mat], order: matCounts[mat] });
-                            matCounts[mat]++;
-                            counts[m.w1Key]++;
-                            counts[m.w2Key]++;
-                        }
-                    }
-                }
+                const usedPairs = new Set();
+                const pairKey = (a, b) => a.id < b.id ? `${a.id}|${b.id}` : `${b.id}|${a.id}`;
                 
-                // Second pass: fill up to minimum matches
-                let iterations = 0;
-                while (iterations++ < possible.length * 2) {
-                    const minMatches = Math.min(...Object.values(counts));
-                    if (minMatches >= settings.minMatchesPerWrestler) break;
+                resetMatchIdCounter();
+                
+                // Priority-queue: each round finds wrestlers with fewest matches, shuffles to avoid bias
+                for (let round = 0; round < settings.minMatchesPerWrestler * all.length * 2; round++) {
+                    const minCount = Math.min(...Object.values(counts));
+                    if (minCount >= settings.minMatchesPerWrestler) break;
                     
-                    let added = false;
-                    for (const m of possible) {
-                        if (counts[m.w1Key] >= 3 || counts[m.w2Key] >= 3) continue;
-                        if (counts[m.w1Key] < settings.minMatchesPerWrestler || counts[m.w2Key] < settings.minMatchesPerWrestler) {
-                            const mat = assignMat(m, matCounts);
-                            if (mat) {
-                                result.push({ ...m, mat, num: mat * 100 + matCounts[mat], order: matCounts[mat] });
-                                matCounts[mat]++;
-                                counts[m.w1Key]++;
-                                counts[m.w2Key]++;
-                                added = true;
-                                break;
-                            }
-                        }
+                    const needyWrestlers = all.filter(w => counts[w.id] === minCount)
+                        .sort(() => Math.random() - 0.5);
+                    
+                    let addedThisRound = false;
+                    
+                    for (const wrestler of needyWrestlers) {
+                        if (counts[wrestler.id] > minCount || counts[wrestler.id] >= 3) continue;
+                        
+                        const candidates = possible
+                            .filter(p => {
+                                const isW = p.w1.id === wrestler.id || p.w2.id === wrestler.id;
+                                if (!isW) return false;
+                                const other = p.w1.id === wrestler.id ? p.w2 : p.w1;
+                                return counts[other.id] < 3 && !usedPairs.has(pairKey(p.w1, p.w2));
+                            })
+                            .sort((a, b) => {
+                                const oA = a.w1.id === wrestler.id ? a.w2 : a.w1;
+                                const oB = b.w1.id === wrestler.id ? b.w2 : b.w1;
+                                const cd = counts[oA.id] - counts[oB.id];
+                                return cd !== 0 ? cd : a.score - b.score;
+                            });
+                        
+                        if (!candidates.length) continue;
+                        
+                        const best = candidates[0];
+                        const mat = assignMat(best, matCounts);
+                        if (!mat) continue;
+                        
+                        const matchId = genMatchId();
+                        result.push({ ...best, id: matchId, mat, num: matchId, displayNum: mat * 100 + matCounts[mat], order: matCounts[mat] });
+                        matCounts[mat]++;
+                        counts[best.w1.id]++;
+                        counts[best.w2.id]++;
+                        usedPairs.add(pairKey(best.w1, best.w2));
+                        addedThisRound = true;
                     }
-                    if (!added) break;
+                    
+                    if (!addedThisRound) break;
                 }
                 
                 setMatches(result);
@@ -1155,10 +1310,10 @@
                 showToast(`Generated ${result.length} matches!`, 'success');
             };
             
-            const getMatches = (w) => matches.filter(m => (m.w1.Name === w.Name && m.w1.Team === w.Team) || (m.w2.Name === w.Name && m.w2.Team === w.Team));
+            const getMatches = (w) => matches.filter(m => (m.w1.id === w.id) || (m.w2.id === w.id));
             
-            const delMatch = (num) => {
-                const newMatches = renumber(matches.filter(m => m.num !== num));
+            const delMatch = (matchId) => {
+                const newMatches = renumber(matches.filter(m => m.id !== matchId));
                 setMatches(newMatches);
                 addToHistory({ matches: newMatches });
                 showToast('Match deleted', 'info');
@@ -1179,7 +1334,8 @@
                     return;
                 }
                 const mat = 1;
-                const newMatches = renumber([...matches, { w1: w, w2: opp, w1Key: `${w.Name}-${w.Team}`, w2Key: `${opp.Name}-${opp.Team}`, mat, order: matches.filter(m => m.mat === mat).length, ...q }]);
+                const matchId = genMatchId();
+                const newMatches = renumber([...matches, { ...q, id: matchId, w1: w, w2: opp, mat, order: matches.filter(m => m.mat === mat).length, avgSkill: (w.Skill + opp.Skill) / 2 }]);
                 setMatches(newMatches);
                 addToHistory({ matches: newMatches });
                 setSelected(null);
@@ -1189,12 +1345,11 @@
             };
             
             // Updated moveMat to support inline placement
-            const moveMatchToPosition = (matchNum, targetMat, targetIndex) => {
-                const match = matches.find(m => m.num === matchNum);
+            const moveMatchToPosition = (matchId, targetMat, targetIndex) => {
+                const match = matches.find(m => m.id === matchId);
                 if (!match) return;
                 
-                // Remove match from current position
-                let newMatches = matches.filter(m => m.num !== matchNum);
+                let newMatches = matches.filter(m => m.id !== matchId);
                 
                 // Get matches for target mat and insert at position
                 const targetMatMatches = newMatches.filter(m => m.mat === targetMat).sort((a, b) => a.order - b.order);
@@ -1217,14 +1372,14 @@
             const getSuggestions = (w) => {
                 const all = [...rosters.t1, ...rosters.t2, ...rosters.t3, ...rosters.t4];
                 const current = getMatches(w);
-                const matched = new Set(current.map(m => m.w1.Name === w.Name ? `${m.w2.Name}-${m.w2.Team}` : `${m.w1.Name}-${m.w1.Team}`));
+                const matched = new Set(current.map(m => m.w1.id === w.id ? m.w2.id : m.w1.id));
                 const hasNoMatches = current.length === 0;
                 
                 // Get all potential opponents (different team, not already matched)
                 const potentialOpponents = all.filter(x => 
-                    x.Name !== w.Name && 
+                    x.id !== w.id && 
                     x.Team !== w.Team && 
-                    !matched.has(`${x.Name}-${x.Team}`)
+                    !matched.has(x.id)
                 );
                 
                 // Calculate scores for all potential opponents - try normal then expanded
@@ -1260,15 +1415,15 @@
             const searchAllOpponents = (w, searchTerm) => {
                 const all = [...rosters.t1, ...rosters.t2, ...rosters.t3, ...rosters.t4];
                 const current = getMatches(w);
-                const matched = new Set(current.map(m => m.w1.Name === w.Name ? `${m.w2.Name}-${m.w2.Team}` : `${m.w1.Name}-${m.w1.Team}`));
+                const matched = new Set(current.map(m => m.w1.id === w.id ? m.w2.id : m.w1.id));
                 
                 const searchLower = searchTerm.toLowerCase();
                 
                 return all
                     .filter(x => 
-                        x.Name !== w.Name && 
+                        x.id !== w.id && 
                         x.Team !== w.Team && 
-                        !matched.has(`${x.Name}-${x.Team}`) &&
+                        !matched.has(x.id) &&
                         (x.Name.toLowerCase().includes(searchLower) || 
                          x.Weight.toString().includes(searchTerm) ||
                          (x.FirstName && x.FirstName.toLowerCase().includes(searchLower)) ||
@@ -1282,6 +1437,65 @@
                     .slice(0, 20);
             };
             
+            // === NEW: "Why No Match?" Diagnostic ===
+            const openDiagnostic = (wrestler) => { setDiagnosticWrestler(wrestler); setShowDiagnostic(true); };
+            
+            const diagnosticResults = useMemo(() => {
+                if (!diagnosticWrestler) return [];
+                const all = [...rosters.t1, ...rosters.t2, ...rosters.t3, ...rosters.t4];
+                const cur = getMatches(diagnosticWrestler);
+                const matchedIds = new Set(cur.map(m => m.w1.id === diagnosticWrestler.id ? m.w2.id : m.w1.id));
+                const opps = all.filter(w => w.id !== diagnosticWrestler.id && w.Team !== diagnosticWrestler.Team && !matchedIds.has(w.id));
+                
+                if (!opps.length) return [{ type: 'none', message: 'No opponents available from other teams.' }];
+                
+                const results = [];
+                // Find closest match for each constraint
+                let bestWt = Infinity, bestWtOpp = null;
+                let bestAge = Infinity, bestAgeOpp = null;
+                let bestSkill = Infinity, bestSkillOpp = null;
+                let bestOverall = null, bestOverallScore = Infinity;
+                
+                opps.forEach(o => {
+                    const wp = (Math.abs(diagnosticWrestler.Weight - o.Weight) / Math.min(diagnosticWrestler.Weight, o.Weight)) * 100;
+                    const ad = Math.abs(diagnosticWrestler.Age - o.Age);
+                    const sd = Math.abs(diagnosticWrestler.Skill - o.Skill);
+                    if (wp < bestWt) { bestWt = wp; bestWtOpp = o; }
+                    if (ad < bestAge) { bestAge = ad; bestAgeOpp = o; }
+                    if (sd < bestSkill) { bestSkill = sd; bestSkillOpp = o; }
+                    // Overall closest
+                    const combo = wp + ad * 5 + sd * 3;
+                    if (combo < bestOverallScore) { bestOverallScore = combo; bestOverall = o; }
+                });
+                
+                // Report which constraints are blocking
+                if (bestWt > settings.maxWt) results.push({ type: 'weight', icon: 'fitness_center', 
+                    message: `Closest weight: ${bestWtOpp.Name} (${bestWtOpp.Weight}lb) at ${bestWt.toFixed(1)}% diff`,
+                    detail: `Your limit is ${settings.maxWt}% — gap is ${(bestWt - settings.maxWt).toFixed(1)}% over` });
+                if (bestAge > settings.maxAge) results.push({ type: 'age', icon: 'cake',
+                    message: `Closest age: ${bestAgeOpp.Name} (age ${bestAgeOpp.Age}) at ${bestAge}yr diff`,
+                    detail: `Your limit is ${settings.maxAge}yr — gap is ${bestAge - settings.maxAge}yr over` });
+                if (bestSkill > settings.maxSkill) results.push({ type: 'skill', icon: 'star',
+                    message: `Closest skill: ${bestSkillOpp.Name} (skill ${bestSkillOpp.Skill}) at ${bestSkill} diff`,
+                    detail: `Your limit is ${settings.maxSkill} — gap is ${bestSkill - settings.maxSkill} over` });
+                
+                if (!results.length) {
+                    // Constraints pass but still no match — opponent at max bouts
+                    results.push({ type: 'capacity', icon: 'group', message: 'All valid opponents are already at max matches (3).', detail: 'Try increasing max matches per wrestler or loosening constraints.' });
+                }
+                
+                // Always show the best overall candidate
+                if (bestOverall) {
+                    const wp = (Math.abs(diagnosticWrestler.Weight - bestOverall.Weight) / Math.min(diagnosticWrestler.Weight, bestOverall.Weight)) * 100;
+                    results.push({ type: 'suggestion', icon: 'lightbulb',
+                        message: `Best overall candidate: ${bestOverall.Name} (${bestOverall.Team})`,
+                        detail: `${bestOverall.Weight}lb, age ${bestOverall.Age}, skill ${bestOverall.Skill} — Wt: ${wp.toFixed(1)}%, Age: ${Math.abs(diagnosticWrestler.Age - bestOverall.Age)}yr, Skill: ${Math.abs(diagnosticWrestler.Skill - bestOverall.Skill)}`,
+                        wrestler: bestOverall });
+                }
+                
+                return results;
+            }, [diagnosticWrestler, rosters, matches, settings]);
+            
             const getColor = (team) => {
                 const k = Object.keys(names).find(x => names[x] === team);
                 return k ? colors[k] : '#5f6368';
@@ -1292,29 +1506,29 @@
                 return k ? abbrevs[k] : 'XX';
             };
             
-            const needsRestHighlight = (wrestler, matchNum, mat) => {
-                // Get all matches for this wrestler across ALL mats
-                const wrestlerMatches = matches
-                    .filter(m => (m.w1.Name === wrestler.Name && m.w1.Team === wrestler.Team) || (m.w2.Name === wrestler.Name && m.w2.Team === wrestler.Team));
-                
-                if (wrestlerMatches.length < 2) return false;
-                
-                // Create a global timeline - matches at same order position across mats happen ~simultaneously
-                // Sort by order first, then by mat as tiebreaker
-                wrestlerMatches.sort((a, b) => {
+            // FIX #2: Global timeline for rest violation detection
+            const buildGlobalTimeline = (matchList) => {
+                const sorted = [...matchList].sort((a, b) => {
                     if (a.order !== b.order) return a.order - b.order;
                     return a.mat - b.mat;
                 });
+                const slotMap = new Map();
+                sorted.forEach((m, idx) => slotMap.set(m.id, idx));
+                return slotMap;
+            };
+            
+            const slotMap = useMemo(() => buildGlobalTimeline(matches), [matches]);
+            
+            const needsRestHighlight = (wrestler, matchId) => {
+                const wrestlerMatches = matches.filter(m => m.w1.id === wrestler.id || m.w2.id === wrestler.id);
+                if (wrestlerMatches.length < 2) return false;
                 
-                // Check gaps between consecutive matches
+                wrestlerMatches.sort((a, b) => (slotMap.get(a.id) || 0) - (slotMap.get(b.id) || 0));
+                
                 for (let i = 0; i < wrestlerMatches.length - 1; i++) {
-                    // Calculate effective gap - if on same mat, use order diff
-                    // If on different mats, matches at same order are ~simultaneous (gap = 0)
-                    const orderDiff = wrestlerMatches[i + 1].order - wrestlerMatches[i].order;
-                    const gap = orderDiff; // Even across mats, order position determines timing
-                    
+                    const gap = (slotMap.get(wrestlerMatches[i + 1].id) || 0) - (slotMap.get(wrestlerMatches[i].id) || 0);
                     if (gap <= settings.minRestBetweenBouts) {
-                        if (wrestlerMatches[i].num === matchNum || wrestlerMatches[i + 1].num === matchNum) return true;
+                        if (wrestlerMatches[i].id === matchId || wrestlerMatches[i + 1].id === matchId) return true;
                     }
                 }
                 return false;
@@ -1350,14 +1564,14 @@
                             row.getCell(5).font = { bold: true, color: { argb: teamArgb } };
                         } else {
                             ms.forEach((m, mIdx) => {
-                                const opp = m.w1.Name === w.Name ? m.w2 : m.w1;
+                                const opp = m.w1.id === w.id ? m.w2 : m.w1;
                                 const oppTeamKey = Object.keys(names).find(k => names[k] === opp.Team);
                                 const oppAbbrev = oppTeamKey ? abbrevs[oppTeamKey] : 'XX';
                                 const oppArgb = hexToArgb(oppTeamKey ? colors[oppTeamKey] : '#5f6368');
                                 const row = ws.addRow([
                                     mIdx === 0 ? w.Age : '', mIdx === 0 ? w.Weight : '', mIdx === 0 ? w.Skill : '', '',
                                     mIdx === 0 ? `${w.LastName || w.Name.split(' ')[1]}, ${w.FirstName || w.Name.split(' ')[0]}` : '',
-                                    m.num, `${oppAbbrev}-${opp.FirstName?.charAt(0) || opp.Name.charAt(0)} ${opp.LastName || opp.Name.split(' ')[1] || ''}`
+                                    m.displayNum || m.num, `${oppAbbrev}-${opp.FirstName?.charAt(0) || opp.Name.charAt(0)} ${opp.LastName || opp.Name.split(' ')[1] || ''}`
                                 ]);
                                 if (mIdx === 0) row.getCell(5).font = { bold: true, color: { argb: teamArgb } };
                                 row.getCell(6).font = { color: { argb: teamArgb } };
@@ -1380,7 +1594,7 @@
                         const w1a = hexToArgb(w1tk ? colors[w1tk] : '#5f6368');
                         const w2a = hexToArgb(w2tk ? colors[w2tk] : '#5f6368');
                         const row = ws.addRow([
-                            m.num, w1tk ? abbrevs[w1tk] : 'XX',
+                            m.displayNum || m.num, w1tk ? abbrevs[w1tk] : 'XX',
                             `${m.w1.LastName || m.w1.Name}, ${m.w1.FirstName || ''}`, m.w1.Weight, 'vs',
                             w2tk ? abbrevs[w2tk] : 'XX',
                             `${m.w2.LastName || m.w2.Name}, ${m.w2.FirstName || ''}`, m.w2.Weight,
@@ -1423,8 +1637,8 @@
                 const allWrestlers = [...rosters.t1, ...rosters.t2, ...rosters.t3, ...rosters.t4];
                 const matchCounts = {};
                 matches.forEach(m => {
-                    matchCounts[m.w1.Name] = (matchCounts[m.w1.Name] || 0) + 1;
-                    matchCounts[m.w2.Name] = (matchCounts[m.w2.Name] || 0) + 1;
+                    matchCounts[m.w1.id] = (matchCounts[m.w1.id] || 0) + 1;
+                    matchCounts[m.w2.id] = (matchCounts[m.w2.id] || 0) + 1;
                 });
                 
                 const distribution = {};
@@ -1438,35 +1652,26 @@
                 const avgQuality = matches.length > 0 ?
                     (matches.reduce((sum, m) => sum + (7 - m.score), 0) / matches.length).toFixed(1) : 0;
                 
-                // Calculate rest violations ACROSS ALL MATS
+                // FIX #2: Rest violations using global timeline slots
                 let restViolations = 0;
-                const countedViolations = new Set(); // Track unique violations to avoid double counting
+                const countedViolations = new Set();
                 
-                // Group all matches by wrestler (across all mats)
                 const wrestlerAllMatches = {};
                 matches.forEach(m => {
-                    const w1Key = `${m.w1.Name}-${m.w1.Team}`;
-                    const w2Key = `${m.w2.Name}-${m.w2.Team}`;
-                    if (!wrestlerAllMatches[w1Key]) wrestlerAllMatches[w1Key] = [];
-                    if (!wrestlerAllMatches[w2Key]) wrestlerAllMatches[w2Key] = [];
-                    wrestlerAllMatches[w1Key].push(m);
-                    wrestlerAllMatches[w2Key].push(m);
+                    if (!wrestlerAllMatches[m.w1.id]) wrestlerAllMatches[m.w1.id] = [];
+                    if (!wrestlerAllMatches[m.w2.id]) wrestlerAllMatches[m.w2.id] = [];
+                    wrestlerAllMatches[m.w1.id].push(m);
+                    wrestlerAllMatches[m.w2.id].push(m);
                 });
                 
-                // Check for violations across all mats
                 Object.values(wrestlerAllMatches).forEach(wrestlerMatches => {
                     if (wrestlerMatches.length < 2) return;
-                    // Sort by order (matches at same order across mats happen ~simultaneously)
-                    wrestlerMatches.sort((a, b) => {
-                        if (a.order !== b.order) return a.order - b.order;
-                        return a.mat - b.mat;
-                    });
+                    wrestlerMatches.sort((a, b) => (slotMap.get(a.id) || 0) - (slotMap.get(b.id) || 0));
                     for (let i = 0; i < wrestlerMatches.length - 1; i++) {
-                        const gap = wrestlerMatches[i + 1].order - wrestlerMatches[i].order;
+                        const gap = (slotMap.get(wrestlerMatches[i + 1].id) || 0) - (slotMap.get(wrestlerMatches[i].id) || 0);
                         if (gap <= settings.minRestBetweenBouts) {
-                            // Create unique key for this violation pair (sorted to avoid duplicates)
-                            const nums = [wrestlerMatches[i].num, wrestlerMatches[i + 1].num].sort((a,b) => a-b);
-                            const violationKey = `${nums[0]}-${nums[1]}`;
+                            const ids = [wrestlerMatches[i].id, wrestlerMatches[i + 1].id].sort();
+                            const violationKey = `${ids[0]}-${ids[1]}`;
                             if (!countedViolations.has(violationKey)) {
                                 countedViolations.add(violationKey);
                                 restViolations++;
@@ -1490,7 +1695,7 @@
                     matCounts,
                     restViolations
                 };
-            }, [rosters, matches, settings.minRestBetweenBouts]);
+            }, [rosters, matches, settings.minRestBetweenBouts, slotMap]);
             
             // Drag handlers for inline drop
             const handleDragStart = (match, mat) => {
@@ -1524,7 +1729,7 @@
                 e.preventDefault();
                 e.stopPropagation();
                 if (dragged) {
-                    moveMatchToPosition(dragged.num, mat, index);
+                    moveMatchToPosition(dragged.id, mat, index);
                     handleDragEnd();
                 }
             };
@@ -1533,7 +1738,7 @@
                 e.preventDefault();
                 if (dragged) {
                     const matMatches = matches.filter(m => m.mat === mat);
-                    moveMatchToPosition(dragged.num, mat, matMatches.length);
+                    moveMatchToPosition(dragged.id, mat, matMatches.length);
                     handleDragEnd();
                 }
             };
@@ -1583,8 +1788,14 @@
                                             <button onClick={() => setShowAnalytics(true)} className="md-filled-button">
                                                 <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>analytics</span>Analytics
                                             </button>
+                                            <button onClick={() => setShowTimeline(true)} className="md-outlined-button" title="Conflict Timeline">
+                                                <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>timeline</span>Timeline
+                                            </button>
                                             <button onClick={exportExcel} className="md-filled-button" style={{ backgroundColor: 'var(--md-sys-color-tertiary)' }}>
                                                 <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>download</span>Export
+                                            </button>
+                                            <button onClick={generateShareUrl} className="md-outlined-button" title="Share via URL">
+                                                <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>share</span>Share
                                             </button>
                                         </>
                                     )}
@@ -1779,7 +1990,7 @@
                                                 const ms = getMatches(w);
                                                 const c = getColor(w.Team);
                                                 return (
-                                                    <div key={w.Name} className={`wrestler-card md-card-outlined p-3 cursor-pointer ${selected?.Name === w.Name ? 'ring-2' : ''}`} style={{ borderLeftColor: c, borderLeftWidth: '3px', ...(selected?.Name === w.Name ? { ringColor: 'var(--md-sys-color-primary)' } : {}) }}>
+                                                    <div key={w.id} className={`wrestler-card md-card-outlined p-3 cursor-pointer ${selected?.id === w.id ? 'ring-2' : ''}`} style={{ borderLeftColor: c, borderLeftWidth: '3px', ...(selected?.id === w.id ? { ringColor: 'var(--md-sys-color-primary)' } : {}) }}>
                                                         <div className="flex justify-between items-center">
                                                             <div className="flex-1" onClick={() => setSelected(w)}>
                                                                 <div className="flex items-center gap-2">
@@ -1790,24 +2001,25 @@
                                                             </div>
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-lg font-bold" style={{ color: c }}>{ms.length}</span>
+                                                                {ms.length === 0 && <button onClick={(e) => { e.stopPropagation(); openDiagnostic(w); }} className="text-orange-600 hover:bg-orange-50 rounded p-1" title="Why no matches?"><span className="material-symbols-rounded" style={{ fontSize: '18px' }}>help</span></button>}
                                                                 <button onClick={(e) => { e.stopPropagation(); scratchWrestler(w); }} className="text-red-600 hover:bg-red-50 rounded p-1" title="Scratch">X</button>
                                                             </div>
                                                         </div>
                                                         {ms.length > 0 && (
                                                             <div className="mt-2 space-y-1">
                                                                 {ms.map(m => {
-                                                                    const opp = m.w1.Name === w.Name ? m.w2 : m.w1;
+                                                                    const opp = m.w1.id === w.id ? m.w2 : m.w1;
                                                                     const oc = getColor(opp.Team);
                                                                     return (
-                                                                        <div key={m.num} className="text-xs p-1.5 rounded" style={{ backgroundColor: oc + '15', borderLeft: `2px solid ${oc}` }}>
+                                                                        <div key={m.id} className="text-xs p-1.5 rounded" style={{ backgroundColor: oc + '15', borderLeft: `2px solid ${oc}` }}>
                                                                             <div className="flex items-center justify-between mb-1">
                                                                                 <div className="flex items-center gap-1">
-                                                                                    <span className="font-mono font-semibold">#{m.num}</span>
+                                                                                    <span className="font-mono font-semibold">#{m.displayNum || m.num}</span>
                                                                                     <span className="px-1 py-0.5 rounded text-white" style={{ backgroundColor: oc }}>{getAbbrev(opp.Team)}</span>
                                                                                     <span className="font-semibold truncate" style={{ color: oc }}>{opp.Name}</span>
                                                                                     <span className="text-xs font-bold px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-700">{getMatches(opp).length}</span>
                                                                                 </div>
-                                                                                <button onClick={(e) => { e.stopPropagation(); delMatch(m.num); }} className="text-red-600 hover:bg-red-100 rounded px-1">X</button>
+                                                                                <button onClick={(e) => { e.stopPropagation(); delMatch(m.id); }} className="text-red-600 hover:bg-red-100 rounded px-1">X</button>
                                                                             </div>
                                                                             <StatsCompare w1={w} w2={opp} compact={true} />
                                                                         </div>
@@ -1832,11 +2044,27 @@
                                                                 </h3>
                                                                 <p className="text-sm" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>Click to add match | Sorted by fewest matches first</p>
                                                             </div>
-                                                            <button onClick={() => setShowSearchOpponent(true)} className="md-outlined-button" style={{ borderColor: 'var(--md-sys-color-on-primary-container)', color: 'var(--md-sys-color-on-primary-container)' }}>
-                                                                <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>search</span>Search All
-                                                            </button>
+                                                            <div className="flex gap-2">
+                                                                <button onClick={() => openDiagnostic(selected)} className="md-outlined-button" style={{ borderColor: 'var(--md-sys-color-on-primary-container)', color: 'var(--md-sys-color-on-primary-container)' }}>
+                                                                    <span className="material-symbols-rounded" style={{ marginRight: '4px' }}>help</span>Why?
+                                                                </button>
+                                                                <button onClick={() => setShowSearchOpponent(true)} className="md-outlined-button" style={{ borderColor: 'var(--md-sys-color-on-primary-container)', color: 'var(--md-sys-color-on-primary-container)' }}>
+                                                                    <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>search</span>Search All
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                     </div>
+                                                    
+                                                    {/* No suggestions - show diagnostic prompt */}
+                                                    {getSuggestions(selected).length === 0 && (
+                                                        <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'var(--md-sys-color-error-container)' }}>
+                                                            <span className="material-symbols-rounded" style={{ fontSize: '32px', color: 'var(--md-sys-color-error)' }}>search_off</span>
+                                                            <p className="font-medium mt-2" style={{ color: 'var(--md-sys-color-on-error-container)' }}>No opponents found within criteria</p>
+                                                            <button onClick={() => openDiagnostic(selected)} className="mt-2 md-outlined-button" style={{ borderColor: 'var(--md-sys-color-error)', color: 'var(--md-sys-color-error)' }}>
+                                                                <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>help</span>Diagnose Why
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                     
                                                     {/* Show warning if expanded criteria are being used */}
                                                     {getMatches(selected).length === 0 && getSuggestions(selected).some(s => s.expanded) && (
@@ -1911,14 +2139,14 @@
                                                             {ms.map((m, index) => {
                                                                 const c1 = getColor(m.w1.Team);
                                                                 const c2 = getColor(m.w2.Team);
-                                                                const w1NeedsRest = needsRestHighlight(m.w1, m.num, mat);
-                                                                const w2NeedsRest = needsRestHighlight(m.w2, m.num, mat);
+                                                                const w1NeedsRest = needsRestHighlight(m.w1, m.id);
+                                                                const w2NeedsRest = needsRestHighlight(m.w2, m.id);
                                                                 const anyNeedsRest = w1NeedsRest || w2NeedsRest;
                                                                 const isDropHere = dropTarget.mat === mat && dropTarget.index === index;
-                                                                const isDragging = dragged?.num === m.num;
+                                                                const isDragging = dragged?.id === m.id;
                                                                 
                                                                 return (
-                                                                    <React.Fragment key={m.num}>
+                                                                    <React.Fragment key={m.id}>
                                                                         {/* Drop indicator */}
                                                                         <div 
                                                                             className={`drop-indicator ${isDropHere ? 'active' : ''}`}
@@ -1937,7 +2165,7 @@
                                                                             {/* Single row: # | W1 | vs | W2 | stats */}
                                                                             <div className="flex items-center gap-1 text-xs">
                                                                                 <span className="material-symbols-rounded" style={{ color: 'var(--md-sys-color-outline)', fontSize: '12px' }}>drag_indicator</span>
-                                                                                <span className="font-mono font-bold text-gray-600 w-7">#{m.num % 100}</span>
+                                                                                <span className="font-mono font-bold text-gray-600 w-7">#{(m.displayNum || m.num) % 100}</span>
                                                                                 
                                                                                 {/* Wrestler 1 */}
                                                                                 <div className={`flex items-center gap-0.5 flex-1 min-w-0 px-1 py-0.5 rounded ${w1NeedsRest ? 'ring-1 ring-orange-400' : ''}`} style={{ backgroundColor: c1 + '15' }}>
@@ -2144,6 +2372,38 @@
                         )}
                     </Modal>
                     
+                    {/* Share Tournament Modal */}
+                    <Modal isOpen={showShareDialog} onClose={() => setShowShareDialog(false)} title="Share Tournament" size="md">
+                        <div className="space-y-4">
+                            <div className="p-3 rounded-lg" style={{ backgroundColor: 'var(--md-sys-color-primary-container)' }}>
+                                <p className="text-sm" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
+                                    <span className="material-symbols-rounded" style={{ marginRight: '8px', verticalAlign: 'middle' }}>info</span>
+                                    Copy this link and send it to other coaches. When they open it, the entire tournament loads automatically. No account or cloud storage needed.
+                                </p>
+                            </div>
+                            <textarea readOnly value={shareUrl} className="md-text-field h-32 font-mono text-xs" onClick={(e) => e.target.select()} />
+                            <div className="flex gap-3">
+                                <button onClick={() => { navigator.clipboard.writeText(shareUrl).then(() => showToast('Link copied to clipboard!', 'success')).catch(() => showToast('Select and copy the link manually', 'info')); }} className="flex-1 md-filled-button">
+                                    <span className="material-symbols-rounded" style={{ marginRight: '8px' }}>content_copy</span>Copy Link
+                                </button>
+                                <button onClick={() => setShowShareDialog(false)} className="flex-1 md-outlined-button">Close</button>
+                            </div>
+                            {shareUrl.length > 8000 && (
+                                <div className="p-3 rounded-lg" style={{ backgroundColor: 'var(--md-sys-color-warning-container)' }}>
+                                    <p className="text-xs" style={{ color: '#b45309' }}>
+                                        <span className="material-symbols-rounded" style={{ marginRight: '4px', fontSize: '16px', verticalAlign: 'middle' }}>warning</span>
+                                        This URL is {(shareUrl.length / 1024).toFixed(0)}KB. Very large tournaments may exceed URL length limits in some browsers. Consider using Save/Load instead.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </Modal>
+                    
+                    {/* Conflict Timeline Modal */}
+                    <Modal isOpen={showTimeline} onClose={() => setShowTimeline(false)} title="Conflict Timeline" size="xl">
+                        <ConflictTimeline matches={matches} slotMap={slotMap} settings={settings} getColor={getColor} getAbbrev={getAbbrev} needsRestHighlight={needsRestHighlight} />
+                    </Modal>
+                    
                     <Modal isOpen={showAnalytics} onClose={() => setShowAnalytics(false)} title="Tournament Analytics" size="xl">
                         <div className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -2232,6 +2492,62 @@
                                 <div className="flex gap-3 pt-4">
                                     <button onClick={handleEditSave} className="flex-1 md-filled-button">Save Changes</button>
                                     <button onClick={() => { setShowEditDialog(false); setEditData(null); }} className="flex-1 md-outlined-button">Cancel</button>
+                                </div>
+                            </div>
+                        )}
+                    </Modal>
+                    
+                    {/* Why No Match? Diagnostic Modal */}
+                    <Modal isOpen={showDiagnostic} onClose={() => { setShowDiagnostic(false); setDiagnosticWrestler(null); }} title={`Diagnostic: ${diagnosticWrestler?.Name || ''}`} size="md">
+                        {diagnosticWrestler && (
+                            <div className="space-y-4">
+                                <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--md-sys-color-surface-container)', borderLeft: `4px solid ${getColor(diagnosticWrestler.Team)}` }}>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xs font-bold px-2 py-1 rounded" style={{ backgroundColor: getColor(diagnosticWrestler.Team), color: 'white' }}>{getAbbrev(diagnosticWrestler.Team)}</span>
+                                        <div>
+                                            <div className="font-bold text-lg" style={{ color: getColor(diagnosticWrestler.Team) }}>{diagnosticWrestler.Name}</div>
+                                            <div className="text-sm" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{diagnosticWrestler.Weight}lb | Age {diagnosticWrestler.Age} | Exp {diagnosticWrestler.Exp} | Skill {diagnosticWrestler.Skill}</div>
+                                        </div>
+                                        <div className="ml-auto">
+                                            <span className="text-2xl font-bold" style={{ color: getMatches(diagnosticWrestler).length === 0 ? 'var(--md-sys-color-error)' : 'var(--md-sys-color-tertiary)' }}>{getMatches(diagnosticWrestler).length}</span>
+                                            <span className="text-sm ml-1" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>matches</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <h3 className="font-bold" style={{ color: 'var(--md-sys-color-on-surface)' }}>
+                                    <span className="material-symbols-rounded" style={{ marginRight: '8px', color: 'var(--md-sys-color-warning)' }}>troubleshoot</span>
+                                    Constraint Analysis
+                                </h3>
+                                
+                                <div className="space-y-3">
+                                    {diagnosticResults.map((r, idx) => (
+                                        <div key={idx} className="p-4 rounded-lg" style={{ 
+                                            backgroundColor: r.type === 'suggestion' ? 'var(--md-sys-color-tertiary-container)' : 
+                                                           r.type === 'capacity' ? 'var(--md-sys-color-warning-container)' : 
+                                                           'var(--md-sys-color-error-container)',
+                                            borderLeft: `4px solid ${r.type === 'suggestion' ? 'var(--md-sys-color-tertiary)' : r.type === 'capacity' ? 'var(--md-sys-color-warning)' : 'var(--md-sys-color-error)'}`
+                                        }}>
+                                            <div className="flex items-start gap-3">
+                                                <span className="material-symbols-rounded mt-0.5" style={{ color: r.type === 'suggestion' ? 'var(--md-sys-color-tertiary)' : r.type === 'capacity' ? '#b45309' : 'var(--md-sys-color-error)' }}>{r.icon || 'error'}</span>
+                                                <div className="flex-1">
+                                                    <div className="font-medium">{r.message}</div>
+                                                    {r.detail && <div className="text-sm mt-1" style={{ color: 'var(--md-sys-color-on-surface-variant)' }}>{r.detail}</div>}
+                                                    {r.wrestler && (
+                                                        <button onClick={() => { addMatch(diagnosticWrestler, r.wrestler); setShowDiagnostic(false); setDiagnosticWrestler(null); }} className="mt-2 md-filled-button" style={{ backgroundColor: 'var(--md-sys-color-tertiary)', padding: '6px 16px', fontSize: '13px' }}>
+                                                            <span className="material-symbols-rounded" style={{ marginRight: '4px', fontSize: '16px' }}>add</span>Force Add Match
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                
+                                <div className="p-3 rounded-lg" style={{ backgroundColor: 'var(--md-sys-color-primary-container)' }}>
+                                    <p className="text-sm" style={{ color: 'var(--md-sys-color-on-primary-container)' }}>
+                                        <strong>Tip:</strong> You can adjust limits in Settings, or use "Search All" to manually find and force-add opponents outside normal criteria.
+                                    </p>
                                 </div>
                             </div>
                         )}
