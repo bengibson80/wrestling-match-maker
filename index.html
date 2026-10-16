@@ -1272,38 +1272,71 @@ function App() {
           });
           if (last && start + PER_COL * 2 < all.length) last.addPageBreak();
         }
-        ws.pageSetup = { orientation: 'portrait', paperSize: 1, fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true,
+        ws.pageSetup = { orientation: 'portrait', paperSize: 1, scale: 82, horizontalCentered: true,
           margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }, printTitlesRow: '1:2' };
         ws.headerFooter.oddFooter = '&LSorted by weight, lightest first&RPage &P of &N';
         ws.views = [{ state: 'frozen', ySplit: 2 }];
       }
+      /* One sheet per team. Wrestler blocks flow down two columns per Letter-portrait page. */
       t.teams.forEach(tm => {
         const roster = t.wrestlers.filter(w => w.team === tm.id && !w.scratched).sort((a, b) => a.last.localeCompare(b.last)); if (!roster.length) return;
         const ws = wb.addWorksheet(tm.name.replace(/[\\/?*[\]:]/g, '').slice(0, 31) || tm.abbr);
-        head(ws.addRow(['Wrestler', 'Age', 'Wt', 'Skill', 'Bout #', 'Mat', 'Opponent', 'Opp wt']));
-        [26, 6, 7, 6, 8, 6, 26, 8].forEach((w, i) => ws.getColumn(i + 1).width = w);
+        const BW = 4, GAP = BW + 1, ROWS = 44, HDR = 2;
+        [7, 5, 24, 6].forEach((wd, i) => { ws.getColumn(i + 1).width = wd; ws.getColumn(GAP + 1 + i).width = wd; });
+        ws.getColumn(GAP).width = 3;
+        const title = ws.addRow([`${tm.name} · ${t.name} · ${fmtDOB(t.eventDate)}`]);
+        ws.mergeCells(1, 1, 1, BW * 2 + 1); title.getCell(1).font = { bold: true, size: 13 };
+        const hdr = ws.addRow(['Bout', 'Mat', 'Opponent', 'Wt', '', 'Bout', 'Mat', 'Opponent', 'Wt']);
+        hdr.eachCell((c, n) => { if (n === GAP) return; c.font = { bold: true, size: 10 }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8ECF2' } }; c.border = { bottom: { style: 'thin', color: { argb: 'FF9AA4B5' } } }; c.alignment = { horizontal: (n % GAP) === 3 ? 'left' : 'center' }; });
+        let page = 0, col = 0, cur = 0;
         roster.forEach(w => {
-          const ms = t.matches.filter(m => m.a === w.id || m.b === w.id).sort((a, b) => a.order - b.order);
-          if (!ms.length) { const r = ws.addRow([lastFirst(w), ageOn(w.dob, t.eventDate), w.weight, w.skill, '', '', 'No bouts']); r.getCell(1).font = { bold: true, color: { argb: argb(tm.color) } }; }
+          const ms = t.matches.filter(m => m.a === w.id || m.b === w.id).sort((a, b) => a.mat - b.mat || a.order - b.order);
+          const h = 1 + Math.max(1, ms.length) + 1;
+          if (cur + h - 1 > ROWS) { if (col === 0) col = 1; else { col = 0; page++; } cur = 0; }
+          const off = col ? GAP : 0, r0 = HDR + page * ROWS + cur + 1;
+          ws.mergeCells(r0, off + 1, r0, off + BW);
+          const hc = ws.getCell(r0, off + 1);
+          hc.value = `${lastFirst(w)} · ${w.weight} lb · age ${ageOn(w.dob, t.eventDate)} · skill ${w.skill}`;
+          hc.font = { bold: true, size: 10, color: { argb: textOn(tm.color) === '#fff' ? 'FFFFFFFF' : 'FF111111' } };
+          hc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argb(tm.color) } };
+          hc.alignment = { horizontal: 'left', vertical: 'middle' };
+          if (!ms.length) { const c = ws.getCell(r0 + 1, off + 3); c.value = 'No bouts'; c.font = { size: 10, italic: true, color: { argb: 'FF9AA4B5' } }; }
           ms.forEach((m, i) => {
-            const o = wById[m.a === w.id ? m.b : m.a]; const ot = teamById[o.team];
-            const r = ws.addRow([i ? '' : lastFirst(w), i ? '' : ageOn(w.dob, t.eventDate), i ? '' : w.weight, i ? '' : w.skill, m.mat * 100 + m.order + 1, m.mat, `${ot?.abbr} ${lastFirst(o)}`, o.weight]);
-            if (!i) r.getCell(1).font = { bold: true, color: { argb: argb(tm.color) } };
-            r.getCell(7).font = { bold: true, color: { argb: argb(ot?.color || '#555555') } };
+            const o = wById[m.a === w.id ? m.b : m.a]; const ot = teamById[o.team]; const r = r0 + 1 + i;
+            const vals = [m.mat * 100 + m.order + 1, m.mat, `${ot?.abbr || ''} ${lastFirst(o)}`, o.weight];
+            vals.forEach((v, k) => {
+              const c = ws.getCell(r, off + 1 + k); c.value = v; c.alignment = { horizontal: k === 2 ? 'left' : 'center' };
+              c.font = k === 2 ? { size: 10, bold: true, color: { argb: argb(ot?.color || '#555555') } } : { size: 10 };
+              c.border = { bottom: { style: 'hair', color: { argb: 'FFB9C2D0' } } };
+            });
           });
+          cur += h;
         });
+        for (let p = 0; p < page; p++) ws.getRow(HDR + (p + 1) * ROWS).addPageBreak();
+        ws.pageSetup = { orientation: 'portrait', paperSize: 1, scale: 100, horizontalCentered: true,
+          margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }, printTitlesRow: '1:2' };
+        ws.headerFooter.oddFooter = `&L${tm.name.replace(/&/g, '&&')}&RPage &P of &N`;
+        ws.views = [{ state: 'frozen', ySplit: 2 }];
       });
+      /* One sheet per mat, Letter portrait, fit to one page wide, header rows repeat. */
       for (let mat = 1; mat <= t.settings.mats; mat++) {
         const ms = t.matches.filter(m => m.mat === mat).sort((a, b) => a.order - b.order); if (!ms.length) continue;
         const ws = wb.addWorksheet(`Mat ${mat}`);
-        head(ws.addRow(['Bout', 'Team', 'Wrestler', 'Wt', '', 'Team', 'Wrestler', 'Wt', 'Wt %', 'Winner']));
         [7, 6, 24, 6, 4, 6, 24, 6, 7, 16].forEach((w, i) => ws.getColumn(i + 1).width = w);
+        const title = ws.addRow([`Mat ${mat} · ${t.name} · ${fmtDOB(t.eventDate)} · ${ms.length} bouts`]);
+        ws.mergeCells(1, 1, 1, 10); title.getCell(1).font = { bold: true, size: 13 };
+        head(ws.addRow(['Bout', 'Team', 'Wrestler', 'Wt', '', 'Team', 'Wrestler', 'Wt', 'Wt %', 'Winner']));
         ms.forEach(m => {
           const A = wById[m.a], B = wById[m.b]; const ta = teamById[A.team], tb = teamById[B.team];
           const r = ws.addRow([m.mat * 100 + m.order + 1, ta?.abbr, lastFirst(A), A.weight, 'vs', tb?.abbr, lastFirst(B), B.weight, compare(A, B, t.eventDate).wtPct.toFixed(1) + '%', '']);
+          r.height = 20; r.eachCell({ includeEmpty: true }, c => { c.alignment = { vertical: 'middle' }; c.border = { bottom: { style: 'hair', color: { argb: 'FFB9C2D0' } } }; });
           [2, 3].forEach(c => r.getCell(c).font = { bold: true, color: { argb: argb(ta?.color || '#555555') } });
           [6, 7].forEach(c => r.getCell(c).font = { bold: true, color: { argb: argb(tb?.color || '#555555') } });
         });
+        ws.pageSetup = { orientation: 'portrait', paperSize: 1, fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true,
+          margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }, printTitlesRow: '1:2' };
+        ws.headerFooter.oddFooter = `&LMat ${mat}&RPage &P of &N`;
+        ws.views = [{ state: 'frozen', ySplit: 2 }];
       }
       const buf = await wb.xlsx.writeBuffer();
       await saveFile(`${t.name.replace(/[^\w\- ]+/g, '').trim() || 'bouts'}.xlsx`, new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
