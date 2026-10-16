@@ -111,6 +111,8 @@ select.inp{text-overflow:ellipsis}
 .swatches{display:grid;grid-template-columns:repeat(6,28px);gap:6px;padding:8px;background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);position:absolute;z-index:30;top:40px;left:0}
 .swatches button{width:28px;height:28px;border-radius:50%;border:2px solid transparent;padding:0}
 .swatches button[aria-pressed="true"]{border-color:var(--ink)}
+.swatches label.cs{width:28px;height:28px;border-radius:50%;border:2px solid var(--line-strong);background:conic-gradient(#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00);position:relative;overflow:hidden;cursor:pointer}
+.swatches label.cs input{position:absolute;inset:-8px;width:44px;height:44px;opacity:0;cursor:pointer}
 .tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
 table{border-collapse:collapse;width:100%;font-size:14px}
 th{font-family:var(--f-display);text-transform:uppercase;letter-spacing:.05em;font-size:13px;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--surface-2);white-space:nowrap}
@@ -221,7 +223,9 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 /* ---------- helpers ---------- */
 const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
 const CLIENT = uid();
-const PALETTE = ['#2563eb','#7c3aed','#16a34a','#ea580c','#dc2626','#0891b2','#ca8a04','#db2777','#0f766e','#9b1c2e','#4b5563','#111827'];
+const PALETTE = ['#2563eb','#7c3aed','#16a34a','#ea580c','#dc2626','#0891b2','#ca8a04','#db2777','#0f766e','#9b1c2e','#4b5563','#111827',
+  '#60a5fa','#1e3a8a','#a78bfa','#4c1d95','#4ade80','#14532d','#fb923c','#fdba74','#f87171','#7f1d1d','#22d3ee','#164e63',
+  '#facc15','#a16207','#f472b6','#9d174d','#2dd4bf','#84cc16','#4d7c0f','#a855f7','#78350f','#9ca3af','#d1d5db','#000000'];
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 const DEFAULT_SETTINGS = { mats: 3, maxPerMat: 30, maxWtPct: 10, prefWtPct: 5, maxAge: 1, maxSkill: 2, minMatches: 2, maxMatches: 3, minRest: 2, autoPlace: true };
 const newTournament = (name = 'Untitled scramble') => ({
@@ -527,7 +531,8 @@ function ColorButton({ value, onChange }) {
   return (
     <div style={{ position: 'relative' }} ref={ref}>
       <button className="swatch" style={{ background: value }} onClick={() => setOpen(!open)} aria-label="Team color" />
-      {open && <div className="swatches">{PALETTE.map(c => <button key={c} style={{ background: c }} aria-pressed={c === value} aria-label={c} onClick={() => { onChange(c); setOpen(false); }} />)}</div>}
+      {open && <div className="swatches">{PALETTE.map(c => <button key={c} style={{ background: c }} aria-pressed={c === value} aria-label={c} onClick={() => { onChange(c); setOpen(false); }} />)}
+        <label className="cs" title="Custom color" aria-label="Custom color"><input type="color" value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#2563eb'} onChange={e => onChange(e.target.value)} /></label></div>}
     </div>
   );
 }
