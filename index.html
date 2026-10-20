@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Wrestling Scramble Pro</title>
+<title>Wrestling Pairing Pro</title>
 </head><body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
@@ -213,9 +213,84 @@ textarea.inp{min-height:180px;font-family:ui-monospace,Menlo,Consolas,monospace;
 .toast.raise{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 
 @media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important}}
+/* ===== UX/design polish layer ===== */
+:root{--accent:#1d3fa6;--accent-soft:#e6ecfb;--bg:#eceff4;--radius:12px;
+  --shadow:0 1px 2px rgba(20,26,36,.06),0 4px 14px -6px rgba(20,26,36,.12);
+  --shadow-lift:0 2px 4px rgba(20,26,36,.06),0 12px 28px -10px rgba(20,26,36,.22)}
+body{margin:0;background:radial-gradient(1200px 400px at 50% -200px,var(--accent-soft),transparent 70%),var(--bg);background-attachment:fixed;-webkit-font-smoothing:antialiased}
+.btn,.tab,.wrow,.sugg,.team-card,.stat,.bout,.inp,.pill{transition:background-color .15s,border-color .15s,box-shadow .18s,transform .18s,color .15s}
+/* sticky app bar */
+.top{position:sticky;top:0;z-index:35;margin:0 0 12px;padding:10px 0;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px)}
+.brand-mark{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.brand-mark i{background:var(--accent-ink);width:10px;height:10px}
+.tname{border-radius:8px}
+.tname:hover::placeholder{color:var(--muted)}
+.store{padding:4px 10px;box-shadow:var(--shadow)}
+.store.shared b{box-shadow:0 0 0 3px var(--good-soft)}
+.store.saving b{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.35}}
+/* buttons */
+.btn{border-radius:9px;min-height:36px;box-shadow:0 1px 1px rgba(20,26,36,.04)}
+.btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.btn.primary{box-shadow:0 1px 2px rgba(20,26,36,.12),0 6px 16px -8px var(--accent)}
+.btn.primary:hover:not(:disabled){color:var(--accent-ink);filter:brightness(1.12);transform:translateY(-1px)}
+.btn.danger:hover:not(:disabled){color:var(--bad);border-color:var(--bad);background:var(--bad-soft)}
+.btn.danger.solid:hover:not(:disabled){color:#fff;background:var(--bad)}
+.btn.ghost{box-shadow:none}
+.btn:active:not(:disabled){transform:translateY(0) scale(.98)}
+.btn.sm{min-height:30px}
+/* segmented tabs */
+.tabs{position:sticky;top:62px;z-index:34;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:4px;gap:4px;box-shadow:var(--shadow);width:fit-content;max-width:100%}
+.tab{border:0;border-radius:8px;margin:0;padding:8px 16px;font-size:16px}
+.tab:hover{color:var(--ink);background:var(--surface-2)}
+.tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border:0}
+.tab[aria-selected="true"] .n{background:color-mix(in srgb,var(--accent-ink) 22%,transparent);border-color:transparent;color:var(--accent-ink)}
+/* surfaces */
+.panel{border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+.empty{padding:48px 16px}
+.empty h2{font-size:32px}
+.steps{counter-reset:s}
+.steps div{background:var(--surface);border-radius:12px;padding:16px;position:relative;box-shadow:var(--shadow)}
+.steps b{font-size:18px;margin-bottom:4px;color:var(--accent)}
+.team-card{border-radius:var(--radius);box-shadow:var(--shadow)}
+.team-card:hover{box-shadow:var(--shadow-lift)}
+.inp{border-radius:9px;border-color:var(--line-strong)}
+.inp:hover{border-color:var(--muted)}
+.inp:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.tbl-wrap{border-radius:var(--radius);box-shadow:var(--shadow)}
+tbody tr:hover td{background:var(--surface-2)}
+th{position:sticky;top:0;z-index:1}
+/* bouts list */
+.wrow,.sugg{border-radius:10px;padding:10px 12px}
+.wrow:hover,.sugg:hover{transform:translateX(2px);box-shadow:var(--shadow)}
+.wrow[aria-current="true"]{background:var(--accent-soft);outline-width:2px}
+.count{min-width:34px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--good-soft);color:var(--good);font-size:18px}
+.count.low{background:var(--bad-soft);color:var(--bad)}
+.split>:last-child{position:sticky;top:124px}
+.notice{border-radius:10px;padding:12px 14px}
+/* mat board */
+.stat{border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px}
+.stat .v{font-size:34px}
+.stat .bar{height:8px;border-radius:4px}
+.stat .bar i{border-radius:4px;background:linear-gradient(90deg,var(--accent),color-mix(in srgb,var(--accent) 55%,var(--good)))}
+.mat{border-radius:var(--radius);box-shadow:var(--shadow)}
+.mat.over{box-shadow:0 0 0 3px var(--accent),var(--shadow-lift)}
+.mat-head{border-radius:var(--radius) var(--radius) 0 0;border-top:4px solid var(--accent);height:42px}
+.bout{border-radius:9px}
+.bout:hover{box-shadow:var(--shadow-lift);border-color:var(--line-strong)}
+.bout.violation{background:linear-gradient(90deg,var(--bad-soft),var(--surface) 40%)}
+.grip:hover{color:var(--accent)}
+.bnum{color:var(--accent)}
+.drag-ghost{transform:rotate(1.5deg) scale(1.03);box-shadow:0 18px 40px rgba(0,0,0,.28)}
+.actionbar{backdrop-filter:blur(10px);background:color-mix(in srgb,var(--surface) 90%,transparent)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
+@media (min-width:1100px){.top{flex-wrap:nowrap}.top>*{flex-shrink:0}.top .tname{width:clamp(140px,22vw,300px)}}
+@media (max-width:700px){.tabs{top:auto;position:static;width:100%}.top{position:static}.split>:last-child{position:static}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 
-<div id="root"><p style="padding:40px;text-align:center;color:#5a6476">Loading Wrestling Scramble Pro…</p></div>
+<div id="root"><p style="padding:40px;text-align:center;color:#5a6476">Loading Wrestling Pairing Pro…</p></div>
 
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
@@ -1233,6 +1308,17 @@ function App() {
     }});
     createNew(nt); say('Loaded a sample scramble. Rename or delete it from the Tournaments menu.');
   };
+  useEffect(() => {
+    const imp = LS.get('wmm.import'); if (!imp) return; LS.del('wmm.import');
+    const tm = setTimeout(() => {
+      const nt = newTournament(imp.name || 'Match night');
+      const ids = imp.teams.map(() => uid());
+      nt.teams = imp.teams.map((x, i) => ({ id: ids[i], name: x.name, abbr: x.abbr, color: x.color }));
+      nt.wrestlers = imp.wrestlers.map(w => ({ id: uid(), first: w.first, last: w.last, weight: Number(w.weight) || 0, dob: w.dob || '', exp: w.exp || 0, skill: w.skill || 3, team: ids[w.teamIdx], scratched: false }));
+      createNew(nt); say(`Loaded ${nt.wrestlers.length} available wrestlers from ${nt.teams.length} teams. Hit Generate bouts.`);
+    }, 400);
+    return () => clearTimeout(tm);
+  }, []);
 
   const exportExcel = async () => {
     try {
@@ -1351,7 +1437,7 @@ function App() {
       try {
         const data = JSON.parse(ev.target.result);
         const nt = data.format === 'wmm-2' ? { ...data.tournament, id: uid() } : data.rosters ? fromLegacy(data, file.name.replace(/\.json$/i, '')) : null;
-        if (!nt) return say("That file isn't a Wrestling Scramble Pro backup");
+        if (!nt) return say("That file isn't a Wrestling Pairing Pro backup");
         createNew(nt); say(`Imported ${nt.name}`);
       } catch { say("That file isn't valid JSON"); }
     };
@@ -1365,7 +1451,7 @@ function App() {
   return (
     <>
       <header className="top">
-        <div className="brand"><span className="brand-mark"><i /></span><h1>Wrestling Scramble Pro</h1></div>
+        <div className="brand"><span className="brand-mark"><i /></span><h1>Wrestling Pairing Pro</h1></div>
         <input id="tname" className="tname" value={t.name} onChange={e => update(p => ({ ...p, name: e.target.value }), 'Rename', true)} aria-label="Tournament name" />
         <span className={`store ${mode === 'shared' ? 'shared' : ''} ${saving ? 'saving' : ''}`} title={mode === 'shared' ? 'Everyone with access to this page sees the same tournaments, live.' : 'Saved only in this browser on this device.'}>
           <b />{mode === 'starting' ? 'Connecting…' : mode === 'shared' ? (saving ? 'Saving…' : 'Shared · live') : 'Saved in this browser'}
