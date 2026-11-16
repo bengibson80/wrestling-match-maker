@@ -2,7 +2,6 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Wrestling Pairing Pro</title>
-</head><body>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600;700&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
@@ -240,7 +239,7 @@ body{margin:0;background:radial-gradient(1200px 400px at 50% -200px,var(--accent
 .btn:active:not(:disabled){transform:translateY(0) scale(.98)}
 .btn.sm{min-height:30px}
 /* segmented tabs */
-.tabs{position:sticky;top:62px;z-index:34;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:4px;gap:4px;box-shadow:var(--shadow);width:fit-content;max-width:100%}
+.tabs{position:sticky;top:var(--top-h,62px);z-index:34;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:4px;gap:4px;box-shadow:var(--shadow);width:fit-content;max-width:100%}
 .tab{border:0;border-radius:8px;margin:0;padding:8px 16px;font-size:16px}
 .tab:hover{color:var(--ink);background:var(--surface-2)}
 .tab[aria-selected="true"]{background:var(--accent);color:var(--accent-ink);border:0}
@@ -266,7 +265,8 @@ th{position:sticky;top:0;z-index:1}
 .wrow[aria-current="true"]{background:var(--accent-soft);outline-width:2px}
 .count{min-width:34px;height:30px;border-radius:8px;display:grid;place-items:center;background:var(--good-soft);color:var(--good);font-size:18px}
 .count.low{background:var(--bad-soft);color:var(--bad)}
-.split>:last-child{position:sticky;top:124px}
+.split>:last-child{position:sticky;top:calc(var(--top-h,62px) + 62px)}
+@media (min-width:901px){.split>:last-child{max-height:calc(100vh - var(--top-h,62px) - 174px);overflow-y:auto}}
 .notice{border-radius:10px;padding:12px 14px}
 /* mat board */
 .stat{border-radius:var(--radius);box-shadow:var(--shadow);padding:14px 16px}
@@ -285,10 +285,11 @@ th{position:sticky;top:0;z-index:1}
 .actionbar{backdrop-filter:blur(10px);background:color-mix(in srgb,var(--surface) 90%,transparent)}
 ::-webkit-scrollbar{width:10px;height:10px}
 ::-webkit-scrollbar-thumb{background:var(--line-strong);border-radius:8px;border:2px solid transparent;background-clip:padding-box}
-@media (min-width:1100px){.top{flex-wrap:nowrap}.top>*{flex-shrink:0}.top .tname{width:clamp(140px,22vw,300px)}}
+@media (min-width:1500px){.top{flex-wrap:nowrap}.top>*{flex-shrink:0}.top .tname{width:clamp(140px,22vw,300px)}}
 @media (max-width:700px){.tabs{top:auto;position:static;width:100%}.top{position:static}.split>:last-child{position:static}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
+</head><body>
 
 <div id="root"><p style="padding:40px;text-align:center;color:#5a6476">Loading Wrestling Pairing Pro…</p></div>
 
@@ -354,6 +355,22 @@ function renumber(matches) {
   const out = [];
   Object.values(byMat).forEach(list => list.sort((x, y) => x.order - y.order).forEach((m, i) => out.push({ ...m, order: i })));
   return out;
+}
+
+const shuffle = (arr) => { const a = [...arr]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+/* Bouts each wrestler should get; never above the max even if Settings has target > max. */
+const targetBouts = (s) => Math.max(0, Math.min(s.minMatches, s.maxMatches));
+
+/* Make a saved/imported tournament safe to open: fill settings added in later versions, drop bouts whose wrestlers are gone. */
+function normalize(t) {
+  if (!t || typeof t !== 'object' || !Array.isArray(t.wrestlers)) return null;
+  const ids = new Set(t.wrestlers.map(w => w.id));
+  return {
+    ...t, id: t.id || uid(), name: t.name ?? 'Untitled scramble', eventDate: t.eventDate || today(),
+    teams: Array.isArray(t.teams) && t.teams.length ? t.teams : newTournament().teams,
+    settings: { ...DEFAULT_SETTINGS, ...(t.settings || {}) },
+    matches: renumber((Array.isArray(t.matches) ? t.matches : []).filter(m => m && m.a !== m.b && ids.has(m.a) && ids.has(m.b))),
+  };
 }
 
 /* Greedy sequencer: keeps each bout on its mat, picks each mat's next bout so wrestlers get the most rest. */
@@ -433,7 +450,7 @@ function autoMatch(w, t) {
   const s = t.settings; let matches = [...t.matches]; const added = [];
   const counts = countMap(matches);
   const have = counts[w.id] || 0;
-  for (let k = have; k < s.minMatches; k++) {
+  for (let k = have; k < targetBouts(s); k++) {
     const opts = opponentsFor(w, { ...t, matches }, counts)
       .filter(o => o.count < s.maxMatches)
       .sort((x, y) => (x.tier === 'normal' ? 0 : 1) - (y.tier === 'normal' ? 0 : 1) || x.count - y.count || x.cost - y.cost);
@@ -458,26 +475,24 @@ function generate(t) {
     possible.push({ a, b, cost: cost(c, s), avgSkill: (a.skill + b.skill) / 2 });
   }
   possible.sort((x, y) => x.cost - y.cost);
+  const byW = {}; all.forEach(w => byW[w.id] = []);
+  possible.forEach(p => { byW[p.a.id].push(p); byW[p.b.id].push(p); });
   const used = new Set(); const key = (x, y) => x < y ? x + '|' + y : y + '|' + x;
-  const chosen = [];
-  for (let round = 0; round < s.minMatches * all.length * 2 && all.length; round++) {
-    const minCount = Math.min(...Object.values(counts));
-    if (minCount >= s.minMatches) break;
-    const needy = all.filter(w => counts[w.id] === minCount).sort(() => Math.random() - 0.5);
-    let added = false;
-    for (const w of needy) {
-      if (counts[w.id] > minCount || counts[w.id] >= s.maxMatches) continue;
-      const cands = possible.filter(p => (p.a.id === w.id || p.b.id === w.id)).filter(p => {
-        const o = p.a.id === w.id ? p.b : p.a; return counts[o.id] < s.maxMatches && !used.has(key(p.a.id, p.b.id));
-      }).sort((x, y) => {
-        const ox = x.a.id === w.id ? x.b : x.a, oy = y.a.id === w.id ? y.b : y.a;
-        return counts[ox.id] - counts[oy.id] || x.cost - y.cost;
-      });
-      if (!cands.length) continue;
+  const chosen = []; const target = targetBouts(s);
+  const stuck = new Set(); // wrestlers with no legal opponent left; options only shrink, so this is permanent
+  for (;;) {
+    const open = all.filter(w => !stuck.has(w.id) && counts[w.id] < target);
+    if (!open.length) break;
+    const minCount = Math.min(...open.map(w => counts[w.id]));
+    for (const w of shuffle(open.filter(x => counts[x.id] === minCount))) {
+      if (counts[w.id] > minCount) continue; // picked up a bout as someone's opponent this pass
+      const opp = (p) => p.a.id === w.id ? p.b : p.a;
+      const cands = byW[w.id].filter(p => counts[opp(p).id] < s.maxMatches && !used.has(key(p.a.id, p.b.id)))
+        .sort((x, y) => counts[opp(x).id] - counts[opp(y).id] || x.cost - y.cost);
+      if (!cands.length) { stuck.add(w.id); continue; }
       const p = cands[0];
-      chosen.push(p); counts[p.a.id]++; counts[p.b.id]++; used.add(key(p.a.id, p.b.id)); added = true;
+      chosen.push(p); counts[p.a.id]++; counts[p.b.id]++; used.add(key(p.a.id, p.b.id));
     }
-    if (!added) break;
   }
   // Mats: group by skill (Mat 1 = newest wrestlers), equal-sized so no mat runs long.
   chosen.sort((x, y) => x.avgSkill - y.avgSkill || x.cost - y.cost);
@@ -632,10 +647,17 @@ function WrestlerForm({ initial, teams, onSave, onCancel, saveLabel }) {
   );
 }
 
-function ImportDialog({ teams, initialTeam, initialText, onImport, onClose }) {
+function ImportDialog({ teams, wrestlers, initialTeam, initialText, onImport, onClose }) {
   const [team, setTeam] = useState(initialTeam || teams[0]?.id);
   const [text, setText] = useState(initialText || '');
   const parsed = useMemo(() => parseRoster(text), [text]);
+  /* same first + last + DOB already on this team (or twice in this paste) = duplicate */
+  const { fresh, dupes } = useMemo(() => {
+    const k = (w) => `${w.first}|${w.last}|${w.dob}`.toLowerCase();
+    const seen = new Set(wrestlers.filter(w => w.team === team).map(k)); const fresh = []; let dupes = 0;
+    parsed.rows.forEach(r => { if (seen.has(k(r))) dupes++; else { seen.add(k(r)); fresh.push(r); } });
+    return { fresh, dupes };
+  }, [parsed, team, wrestlers]);
   return (
     <Modal title="Import roster" onClose={onClose} wide>
       <div className="notice info small">Columns: First, Last, Weight, DOB (MM/DD/YYYY), Experience (0–6), Skill (1–5). A header row is fine. Paste from a spreadsheet or upload a CSV/Excel file on the Roster tab.</div>
@@ -643,8 +665,9 @@ function ImportDialog({ teams, initialTeam, initialText, onImport, onClose }) {
       <label className="f">Roster data<textarea id="imp-text" className="inp" value={text} onChange={e => setText(e.target.value)} placeholder={'Jake,Miller,72,03/14/2016,2,3\nOwen,Diaz,68.5,11/02/2016,1,2'} /></label>
       {parsed.errors.length > 0 && <ul className="errs">{parsed.errors.map((e, i) => <li key={i}>{e}</li>)}</ul>}
       <div className="row">
-        <button className="btn primary" disabled={!parsed.rows.length} onClick={() => onImport(team, parsed.rows)}>Import {parsed.rows.length} wrestler{parsed.rows.length === 1 ? '' : 's'}</button>
-        {parsed.errors.length > 0 && parsed.rows.length > 0 && <span className="small muted">{parsed.errors.length} row{parsed.errors.length === 1 ? '' : 's'} with errors will be skipped</span>}
+        <button className="btn primary" disabled={!fresh.length} onClick={() => onImport(team, fresh)}>Import {fresh.length} wrestler{fresh.length === 1 ? '' : 's'}</button>
+        {dupes > 0 && <span className="small muted">{dupes} already on this team, skipped</span>}
+        {parsed.errors.length > 0 && fresh.length > 0 && <span className="small muted">{parsed.errors.length} row{parsed.errors.length === 1 ? '' : 's'} with errors will be skipped</span>}
         <span className="spacer" /><button className="btn" onClick={onClose}>Cancel</button>
       </div>
     </Modal>
@@ -744,7 +767,8 @@ function BoutsTab({ t, counts, selectedId, setSelectedId, addBout, deleteBout, o
   const sel = wById[selectedId];
   const myBouts = sel ? t.matches.filter(m => m.a === sel.id || m.b === sel.id).sort((x, y) => x.order - y.order) : [];
   const allOpps = sel ? opponentsFor(sel, t, counts, { includeOutside: true }) : [];
-  const suggestions = allOpps.filter(o => o.tier !== 'outside').sort((x, y) => (x.tier === 'normal' ? 0 : 1) - (y.tier === 'normal' ? 0 : 1) || x.count - y.count || x.cost - y.cost).slice(0, 12);
+  const atMax = (o) => o.count >= s.maxMatches ? 1 : 0;
+  const suggestions = allOpps.filter(o => o.tier !== 'outside').sort((x, y) => (x.tier === 'normal' ? 0 : 1) - (y.tier === 'normal' ? 0 : 1) || atMax(x) - atMax(y) || x.count - y.count || x.cost - y.cost).slice(0, 12);
   const searchHits = search.length >= 2 ? allOpps.filter(o => `${o.w.first} ${o.w.last}`.toLowerCase().includes(search.toLowerCase()) || String(o.w.weight).startsWith(search)).sort((x, y) => x.cost - y.cost).slice(0, 15) : [];
 
   const diagnose = () => {
@@ -758,8 +782,8 @@ function BoutsTab({ t, counts, selectedId, setSelectedId, addBout, deleteBout, o
     if (bw.wtPct > s.maxWtPct) out.push(`Closest weight is ${bw.o.first} ${bw.o.last} (${bw.o.weight} lb), ${bw.wtPct.toFixed(1)}% apart. Limit is ${s.maxWtPct}%.`);
     if (ba.ageDiff > s.maxAge) out.push(`Closest age gap is ${ba.ageDiff} years. Limit is ${s.maxAge}.`);
     if (bs.skillDiff > s.maxSkill) out.push(`Closest skill gap is ${bs.skillDiff}. Limit is ${s.maxSkill}.`);
-    const within = cs.filter(x => fits(x, s));
-    if (!out.length && within.length) out.push(`${within.length} opponent${within.length === 1 ? '' : 's'} fit the limits individually, but no single one fits all of them, or they're already wrestling ${sel.first} or at ${s.maxMatches} bouts.`);
+    const within = cs.filter(x => fits(x, s, 2));
+    if (!out.length && within.length) out.push(`${sel.first} is already paired with every opponent who fits (${within.length}). Use Search below to force another bout.`);
     if (!out.length) out.push('Each limit can be met by someone, but nobody meets all of them at once. Use Search below to force a bout.');
     return out;
   };
@@ -772,7 +796,7 @@ function BoutsTab({ t, counts, selectedId, setSelectedId, addBout, deleteBout, o
           {o.tier === 'expanded' && <span className="pill warn">Outside limits (within 2×)</span>}
           {o.tier === 'outside' && <span className="pill bad">Outside all limits</span>}
         </div>
-        <span className={`pill ${o.count === 0 ? 'bad' : o.count < s.minMatches ? 'warn' : 'plain'}`}>{o.count} bout{o.count === 1 ? '' : 's'}</span>
+        <span className={`pill ${o.count === 0 ? 'bad' : o.count < s.minMatches || atMax(o) ? 'warn' : 'plain'}`}>{o.count} bout{o.count === 1 ? '' : 's'}{atMax(o) ? ' · at max' : ''}</span>
         <Compare a={sel} b={o.w} eventDate={t.eventDate} s={s} />
       </button>
     );
@@ -809,7 +833,7 @@ function BoutsTab({ t, counts, selectedId, setSelectedId, addBout, deleteBout, o
         </div>
       </div>
 
-      <div className="panel stack" style={{ position: 'sticky', top: 'calc(8px + env(safe-area-inset-top,0px))', gap: 14 }}>
+      <div className="panel stack" style={{ gap: 14 }}>
         {!sel ? <div className="muted" style={{ padding: 30, textAlign: 'center' }}>Pick a wrestler to see their bouts and add opponents.</div> : <>
           <div className="row">
             <TeamChip team={teamById[sel.team]} /><h2 style={{ fontSize: 24 }}>{sel.first} {sel.last}</h2>
@@ -1037,13 +1061,14 @@ function MatsTab({ t, update, counts, rest, goLow, freshIds }) {
 /* ---------- Settings tab ---------- */
 /* Number input that keeps its own text while typing, so the field can be emptied and retyped (no stuck leading 0).
    Commits only valid numbers; an empty field reverts to the last value (or the default) on blur. */
-function NumField({ id, value, onCommit, fallback, ...props }) {
+function NumField({ id, value, onCommit, fallback, int, ...props }) {
+  const fix = (n) => { if (int) n = Math.round(n); if (props.min != null) n = Math.max(props.min, n); if (props.max != null) n = Math.min(props.max, n); return n; };
   const [draft, setDraft] = useState(String(value));
   useEffect(() => { setDraft(prev => (prev !== '' && Number(prev) === Number(value) ? prev : String(value))); }, [value]);
   return (
     <input id={id} className="inp" type="number" inputMode="numeric" value={draft}
-      onChange={e => { const raw = e.target.value; setDraft(raw); if (raw !== '' && !Number.isNaN(Number(raw))) onCommit(Number(raw)); }}
-      onBlur={() => { if (draft === '' || Number.isNaN(Number(draft))) { const v = fallback ?? value; setDraft(String(v)); onCommit(v); } }}
+      onChange={e => { const raw = e.target.value; setDraft(raw); if (raw !== '' && !Number.isNaN(Number(raw))) onCommit(fix(Number(raw))); }}
+      onBlur={() => { if (draft === '' || Number.isNaN(Number(draft))) { const v = fallback ?? value; setDraft(String(v)); onCommit(v); } else setDraft(String(value)); }}
       {...props} />
   );
 }
@@ -1061,7 +1086,7 @@ function SettingsTab({ t, update }) {
         <div className="grid-form">
           <label className="f">Event date<input id="s-date" className="inp" type="date" value={t.eventDate} onChange={e => update(p => ({ ...p, eventDate: e.target.value }), 'Event date', true)} /><span className="hint">Ages are calculated as of this date.</span></label>
           <label className="f">Number of mats<select id="s-mats" className="inp" value={s.mats} onChange={set('mats')}>{[1,2,3,4,5,6].map(n => <option key={n} value={n}>{n}</option>)}</select></label>
-          {N('maxPerMat', 'Bout cap per mat', 'Shown as a warning on the mat board.', { min: 1 })}
+          {N('maxPerMat', 'Bout cap per mat', 'Shown as a warning on the mat board.', { min: 1, int: true })}
         </div>
       </div>
       <div className="panel stack">
@@ -1069,16 +1094,17 @@ function SettingsTab({ t, update }) {
         <div className="grid-form">
           {N('maxWtPct', 'Max weight difference (%)', 'Measured against the lighter wrestler.', { min: 0, step: 0.5 })}
           {N('prefWtPct', 'Preferred weight difference (%)', 'Pairs inside this score better.', { min: 0, step: 0.5 })}
-          {N('maxAge', 'Max age difference (years)', null, { min: 0 })}
-          {N('maxSkill', 'Max skill difference', null, { min: 0, max: 4 })}
-          {N('minMatches', 'Bouts per wrestler (target)', null, { min: 1, max: 6 })}
-          {N('maxMatches', 'Bouts per wrestler (max)', null, { min: 1, max: 6 })}
+          {N('maxAge', 'Max age difference (years)', null, { min: 0, int: true })}
+          {N('maxSkill', 'Max skill difference', null, { min: 0, max: 4, int: true })}
+          {N('minMatches', 'Bouts per wrestler (target)', null, { min: 1, max: 6, int: true })}
+          {N('maxMatches', 'Bouts per wrestler (max)', null, { min: 1, max: 6, int: true })}
         </div>
+        {s.minMatches > s.maxMatches && <div className="notice warn small">The target ({s.minMatches}) is above the max ({s.maxMatches}), so nobody will get more than {s.maxMatches}. Raise the max or lower the target.</div>}
       </div>
       <div className="panel stack">
         <h2 style={{ fontSize: 20 }}>Scheduling</h2>
         <div className="grid-form">
-          {N('minRest', 'Minimum rest (bouts)', "Bouts a mat runs between a wrestler's two bouts. 2 means at least two rounds off.", { min: 0, max: 10 })}
+          {N('minRest', 'Minimum rest (bouts)', "Bouts a mat runs between a wrestler's two bouts. 2 means at least two rounds off.", { min: 0, max: 10, int: true })}
           <label className="f">Late additions<select id="s-auto" className="inp" value={s.autoPlace ? '1' : '0'} onChange={e => update(p => ({ ...p, settings: { ...p.settings, autoPlace: e.target.value === '1' } }), 'Settings', true)}>
             <option value="1">Auto-match and put on the least busy mat</option><option value="0">Add to roster only</option></select>
             <span className="hint">Applies to wrestlers added or restored after bouts exist.</span></label>
@@ -1095,7 +1121,7 @@ function App() {
   const [index, setIndex] = useState([]); // [{id,name,updatedAt}]
   const [t, setT] = useState(() => {
     const last = LS.get('wmm.last'); const saved = last && LS.get('wmm.t.' + last);
-    return saved || newTournament();
+    return normalize(saved) || newTournament();
   });
   const [past, setPast] = useState([]); const [future, setFuture] = useState([]);
   const [tab, setTab] = useState(() => LS.get('wmm.tab', 'roster'));
@@ -1109,6 +1135,24 @@ function App() {
   const saveTimer = useRef(null); const dirty = useRef(false); const tRef = useRef(t); tRef.current = t;
   const coalesce = useRef({ label: null, at: 0 });
   const openedShared = useRef(false); const openShared = useRef(null);
+  const topRef = useRef(null); const menuRef = useRef(null);
+
+  /* sticky tabs and the Bouts detail panel sit below the header, however many rows it wraps to */
+  useEffect(() => {
+    const el = topRef.current; if (!el) return;
+    const set = () => document.documentElement.style.setProperty('--top-h', el.offsetHeight + 'px');
+    set(); window.addEventListener('resize', set);
+    const ro = window.ResizeObserver ? new ResizeObserver(set) : null; ro && ro.observe(el);
+    return () => { window.removeEventListener('resize', set); ro && ro.disconnect(); };
+  }, []);
+  /* close the Tournaments menu on an outside tap or Escape (touch screens never fire mouseleave) */
+  useEffect(() => {
+    if (!menu) return;
+    const out = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenu(false); };
+    const esc = (e) => { if (e.key === 'Escape') setMenu(false); };
+    document.addEventListener('pointerdown', out); window.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('pointerdown', out); window.removeEventListener('keydown', esc); };
+  }, [menu]);
 
   const say = useCallback((msg) => { setToast(msg); clearTimeout(say.t); say.t = setTimeout(() => setToast(null), 3200); }, []);
   useEffect(() => { LS.set('wmm.tab', tab); }, [tab]);
@@ -1262,6 +1306,7 @@ function App() {
     const active = t.wrestlers.filter(w => !w.scratched);
     if (active.length < 2) return say('Add wrestlers from at least two teams first');
     const matches = generate(t);
+    if (!matches.length) { setDialog(null); return say('No pairings fit. Wrestlers need to be on at least two teams and within the limits in Settings.'); }
     update(p => ({ ...p, matches }), null);
     const c = countMap(matches); const low = active.filter(w => (c[w.id] || 0) < t.settings.minMatches).length;
     say(`Made ${matches.length} bouts across ${t.settings.mats} mats${low ? ` · ${low} wrestler${low === 1 ? '' : 's'} short, see Bouts` : ''}`);
@@ -1274,6 +1319,7 @@ function App() {
     let next = null;
     if (db) { const snap = await db.doc('tournaments/' + id).get(); next = snap.exists ? snap.data().state : null; }
     else next = LS.get('wmm.t.' + id);
+    next = normalize(next);
     if (!next) return say("Couldn't open that tournament");
     setT(next); setPast([]); setFuture([]); setSelectedId(null); LS.set('wmm.last', id);
     say(`Opened ${next.name}`);
@@ -1288,7 +1334,7 @@ function App() {
   const removeTournament = async (id) => {
     if (db) { await db.doc('tournaments/' + id).delete(); await db.doc('index/' + id).delete(); }
     else { LS.del('wmm.t.' + id); setIndex(prev => { const n = prev.filter(x => x.id !== id); LS.set('wmm.index', n); return n; }); }
-    if (id === t.id) createNew();
+    if (id === t.id) { clearTimeout(saveTimer.current); dirty.current = false; createNew(); } // don't let a pending autosave write it back
     say('Tournament deleted');
   };
 
@@ -1324,6 +1370,13 @@ function App() {
     try {
       const wb = new ExcelJS.Workbook(); const argb = h => 'FF' + h.replace('#', '').toUpperCase();
       const wById = Object.fromEntries(t.wrestlers.map(x => [x.id, x]));
+      const taken = new Set(['all wrestlers', ...Array.from({ length: t.settings.mats }, (_, i) => `mat ${i + 1}`)]);
+      const sheetName = (raw, fallback) => {
+        const base = String(raw).replace(/[\\/?*[\]:]/g, '').replace(/^'+|'+$/g, '').trim().slice(0, 31) || fallback;
+        let n = base, i = 2;
+        while (taken.has(n.toLowerCase())) { const suf = ` (${i++})`; n = base.slice(0, 31 - suf.length) + suf; }
+        taken.add(n.toLowerCase()); return n;
+      };
       const head = (row) => row.eachCell(c => { c.font = { bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8ECF2' } }; });
 
       /* Sheet 1: every wrestler by ascending weight, two columns of wrestlers per printed page */
@@ -1366,7 +1419,7 @@ function App() {
       /* One sheet per team. Wrestler blocks flow down two columns per Letter-portrait page. */
       t.teams.forEach(tm => {
         const roster = t.wrestlers.filter(w => w.team === tm.id && !w.scratched).sort((a, b) => a.last.localeCompare(b.last)); if (!roster.length) return;
-        const ws = wb.addWorksheet(tm.name.replace(/[\\/?*[\]:]/g, '').slice(0, 31) || tm.abbr);
+        const ws = wb.addWorksheet(sheetName(tm.name, tm.abbr || 'Team'));
         const BW = 4, GAP = BW + 1, ROWS = 44, HDR = 2;
         [7, 5, 24, 6].forEach((wd, i) => { ws.getColumn(i + 1).width = wd; ws.getColumn(GAP + 1 + i).width = wd; });
         ws.getColumn(GAP).width = 3;
@@ -1428,6 +1481,39 @@ function App() {
       await saveFile(`${t.name.replace(/[^\w\- ]+/g, '').trim() || 'bouts'}.xlsx`, new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
     } catch (e) { if (e?.code !== 'cancelled') say(`Export didn't finish: ${e?.message || e?.code || 'unknown error'}`); }
   };
+  /* Shareable file: one sheet per mat with bout number, wrestler names and teams. No weights, ages, DOB, experience or skill. */
+  const exportMatsOnly = async () => {
+    try {
+      const wb = new ExcelJS.Workbook();
+      const wById = Object.fromEntries(t.wrestlers.map(x => [x.id, x]));
+      for (let mat = 1; mat <= t.settings.mats; mat++) {
+        const ms = t.matches.filter(m => m.mat === mat && wById[m.a] && wById[m.b]).sort((a, b) => a.order - b.order); if (!ms.length) continue;
+        const ws = wb.addWorksheet(`Mat ${mat}`);
+        [7, 24, 20, 4, 24, 20].forEach((w, i) => ws.getColumn(i + 1).width = w);
+        const title = ws.addRow([`Mat ${mat} · ${t.name} · ${fmtDOB(t.eventDate)} · ${ms.length} bouts`]);
+        ws.mergeCells(1, 1, 1, 6); title.getCell(1).font = { bold: true, size: 13 };
+        const hdr = ws.addRow(['Bout', 'Wrestler', 'Team', '', 'Wrestler', 'Team']);
+        hdr.eachCell({ includeEmpty: true }, c => { c.font = { bold: true }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8ECF2' } }; });
+        ms.forEach((m, i) => {
+          const A = wById[m.a], B = wById[m.b];
+          const r = ws.addRow([m.mat * 100 + m.order + 1, lastFirst(A), teamById[A.team]?.name || '', 'vs', lastFirst(B), teamById[B.team]?.name || '']);
+          r.height = 20;
+          r.eachCell({ includeEmpty: true }, (c, n) => {
+            c.alignment = { vertical: 'middle', horizontal: n === 1 || n === 4 ? 'center' : 'left' };
+            c.border = { bottom: { style: 'hair', color: { argb: 'FFB9C2D0' } } };
+            if (n === 1 || n === 2 || n === 5) c.font = { bold: true };
+            if (i % 2 === 1) c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F6F9' } };
+          });
+        });
+        ws.pageSetup = { orientation: 'portrait', paperSize: 1, fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true,
+          margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.2, footer: 0.2 }, printTitlesRow: '1:2' };
+        ws.headerFooter.oddFooter = `&LMat ${mat}&RPage &P of &N`;
+        ws.views = [{ state: 'frozen', ySplit: 2 }];
+      }
+      const buf = await wb.xlsx.writeBuffer();
+      await saveFile(`${t.name.replace(/[^\w\- ]+/g, '').trim() || 'bouts'} - mats only.xlsx`, new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    } catch (e) { say(`Export didn't finish: ${e?.message || e?.code || 'unknown error'}`); }
+  };
   const exportJSON = async () => { try { await saveFile(`${t.name.replace(/[^\w\- ]+/g, '').trim() || 'tournament'}.json`, new Blob([JSON.stringify({ format: 'wmm-2', tournament: t }, null, 1)], { type: 'application/json' })); } catch (e) { say(`Backup didn't finish: ${e?.message || 'unknown error'}`); } };
   const jsonRef = useRef(null);
   const importJSON = (e) => {
@@ -1436,7 +1522,7 @@ function App() {
     r.onload = ev => {
       try {
         const data = JSON.parse(ev.target.result);
-        const nt = data.format === 'wmm-2' ? { ...data.tournament, id: uid() } : data.rosters ? fromLegacy(data, file.name.replace(/\.json$/i, '')) : null;
+        const nt = data.format === 'wmm-2' ? normalize(data.tournament && { ...data.tournament, id: uid() }) : data.rosters ? fromLegacy(data, file.name.replace(/\.json$/i, '')) : null;
         if (!nt) return say("That file isn't a Wrestling Pairing Pro backup");
         createNew(nt); say(`Imported ${nt.name}`);
       } catch { say("That file isn't valid JSON"); }
@@ -1450,7 +1536,7 @@ function App() {
 
   return (
     <>
-      <header className="top">
+      <header className="top" ref={topRef}>
         <div className="brand"><span className="brand-mark"><i /></span><h1>Wrestling Pairing Pro</h1></div>
         <input id="tname" className="tname" value={t.name} onChange={e => update(p => ({ ...p, name: e.target.value }), 'Rename', true)} aria-label="Tournament name" />
         <span className={`store ${mode === 'shared' ? 'shared' : ''} ${saving ? 'saving' : ''}`} title={mode === 'shared' ? 'Everyone with access to this page sees the same tournaments, live.' : 'Saved only in this browser on this device.'}>
@@ -1459,7 +1545,7 @@ function App() {
         <span className="spacer" />
         <button className="btn sm" onClick={undo} disabled={!past.length} title="Undo (Ctrl+Z)" aria-label="Undo">{I.undo}</button>
         <button className="btn sm" onClick={redo} disabled={!future.length} title="Redo (Ctrl+Y)" aria-label="Redo">{I.redo}</button>
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative' }} ref={menuRef}>
           <button className="btn" onClick={() => setMenu(!menu)} aria-expanded={menu}>Tournaments {I.down}</button>
           {menu && <div className="menu" onMouseLeave={() => setMenu(false)}>
             <button className="item" onClick={() => createNew()}><b>+ New tournament</b></button>
@@ -1484,7 +1570,8 @@ function App() {
           </div>}
           <input ref={jsonRef} type="file" accept=".json,application/json" hidden onChange={importJSON} />
         </div>
-        {hasMatches && <button className="btn" onClick={exportExcel}>Export Excel</button>}
+        {hasMatches && <button className="btn" onClick={exportExcel} title="Full workbook for coaches: all wrestlers, team sheets and mat sheets">Export Excel</button>}
+        {hasMatches && <button className="btn" onClick={exportMatsOnly} title="Shareable file: bouts per mat with wrestler names and teams only">Mats only</button>}
         <button className="btn primary" disabled={active.length < 2} onClick={() => hasMatches ? setDialog({ type: 'regen' }) : runGenerate()}>{hasMatches ? 'Regenerate' : 'Generate bouts'}</button>
       </header>
 
@@ -1518,13 +1605,13 @@ function App() {
         {tab === 'settings' && <SettingsTab t={t} update={update} />}
       </>}
 
-      {dialog?.type === 'import' && <ImportDialog teams={t.teams} initialTeam={dialog.team} initialText={dialog.text} onClose={() => setDialog(null)}
+      {dialog?.type === 'import' && <ImportDialog teams={t.teams} wrestlers={t.wrestlers} initialTeam={dialog.team} initialText={dialog.text} onClose={() => setDialog(null)}
         onImport={(team, rows) => {
           const ws = rows.map(r => ({ id: uid(), ...r, team, scratched: false }));
           let msg = `Imported ${ws.length} wrestler${ws.length === 1 ? '' : 's'} to ${teamById[team]?.name}`;
           update(p => {
             let st = { ...p, wrestlers: [...p.wrestlers, ...ws] };
-            if (p.matches.length && p.settings.autoPlace) { let placed = 0; ws.forEach(w => { const r = autoMatch(w, st); placed += r.added.length; st = { ...st, matches: r.matches }; if (r.added.length) flash(r.added.map(a => a.m.id)); }); msg += ` · ${placed} bouts placed on the least busy mats`; }
+            if (p.matches.length && p.settings.autoPlace) { let placed = 0; const ids = []; ws.forEach(w => { const r = autoMatch(w, st); placed += r.added.length; st = { ...st, matches: r.matches }; r.added.forEach(a => ids.push(a.m.id)); }); if (ids.length) flash(ids); msg += ` · ${placed} bouts placed on the least busy mats`; }
             return st;
           }, null);
           setTimeout(() => say(msg), 0); setDialog(null);
